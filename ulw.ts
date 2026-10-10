@@ -7,7 +7,7 @@ export interface UlwContext {
   model?: { id: string };
   agent: { kind: "main" | "sub" };
   sessionManager: { getSessionId(): string; getBranch(): Array<{ type: string; customType?: string; data?: unknown; content?: unknown }> };
-  ui: { notify(message: string, level: "warning"): void };
+  ui: { notify(message: string, level?: "info" | "warning"): void };
 }
 interface InputEvent { text: string; source: "interactive" | "rpc" | "extension" }
 interface UlwMessage { customType: string; content: string; display: false }
@@ -75,7 +75,8 @@ export function registerUlw(pi: UlwApi): void {
   pi.registerFlag("omo-ultrawork-disabled", { description: "Disable automatic Native ULW arming", type: "boolean", default: false });
   pi.registerFlag("omo-ulw-workflows-disabled", { description: "Disable OMO workflow skill pointers", type: "boolean", default: false });
   pi.registerFlag("omo-ulw-continuation-disabled", { description: "Disable ULW loop/execute continuation", type: "boolean", default: false });
-  let armed = false;
+  // true = armed, false = explicitly off, undefined = never armed (legacy owned continuation still applies).
+  let armed: boolean | undefined;
   let rearmed = false;
   let inputSource: InputEvent["source"] | undefined;
   let commandPending = false;
@@ -83,7 +84,7 @@ export function registerUlw(pi: UlwApi): void {
   let consecutiveContinuations = 0;
 
   const restore = (_event: unknown, ctx: UlwContext) => {
-    armed = false;
+    armed = undefined;
     rearmed = false;
     inputSource = undefined;
     commandPending = false;
@@ -94,7 +95,7 @@ export function registerUlw(pi: UlwApi): void {
     }
   };
   for (const event of ["session_start", "session_switch", "session_branch", "session_tree"] as const) pi.on(event, restore);
-  pi.on("session_compact", () => { rearmed = armed; });
+  pi.on("session_compact", () => { rearmed = armed === true; });
   pi.on("input", event => {
     inputSource = event.source;
     if (event.source !== "extension") { continuationFingerprint = undefined; consecutiveContinuations = 0; }
@@ -110,6 +111,24 @@ export function registerUlw(pi: UlwApi): void {
       },
     });
   }
+  pi.registerCommand("ulw-status", {
+    description: "Show this session's ULW arming and disable flags locally",
+    handler: async (_args, ctx) => {
+      const state = armed === true ? "armed" : armed === false ? "explicit-off" : "never-armed";
+      const flags = ["omo-ultrawork-disabled", "omo-ulw-workflows-disabled", "omo-ulw-continuation-disabled"].map(name => `${name}=${pi.getFlag(name) === true ? "on" : "off"}`);
+      ctx.ui.notify(`ULW ${state}; ${flags.join(", ")}`, "info");
+    },
+  });
+  pi.registerCommand("ulw-off", {
+    description: "Turn ULW off for this session until the next explicit /ulw",
+    handler: async (_args, ctx) => {
+      if (ctx.agent.kind !== "main") return;
+      armed = false;
+      rearmed = false;
+      pi.appendEntry(stateType, false);
+      ctx.ui.notify("ULW off", "info");
+    },
+  });
 
   pi.on("before_agent_start", (event, ctx) => {
     if (ctx.agent.kind !== "main") {
@@ -152,7 +171,7 @@ export function registerUlw(pi: UlwApi): void {
   });
 
   pi.on("session_stop", (event, ctx) => {
-    if (event.signal.aborted || ctx.agent.kind !== "main" || pi.getFlag("omo-ulw-continuation-disabled") || consecutiveContinuations >= 8) return;
+    if (armed === false || event.signal.aborted || ctx.agent.kind !== "main" || pi.getFlag("omo-ulw-continuation-disabled") || consecutiveContinuations >= 8) return;
     const id = ctx.sessionManager.getSessionId();
     const loopPath = join(ctx.cwd, "doc/ulw-loop", id, "goals.json");
     const boulderPath = join(ctx.cwd, "doc/boulder.json");

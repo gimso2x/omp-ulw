@@ -96,7 +96,7 @@ Must NOT have: OMP 본체 수정, 임의 job/child 상태 API, Git 명령 차단
   - Recommended task executor category: writing | native role: default task, agent omitted | reason: native transport 한계 안의 실행 규칙 수정.
   - Commit: N.
 
-- [ ] 4. 로컬 전용 /ulw-status와 /ulw-off 추가
+- [x] 4. 로컬 전용 /ulw-status와 /ulw-off 추가
   - Closes: IS-5.
   - Files: `ulw.ts`, `ulw.test.ts`. 다른 파일/worker API는 수정하지 않는다.
   - Change: 두 명령은 registerCommand handler에서 종료하고 sendUserMessage/LLM turn을 시작하지 않는다. status는 extension-owned 활성화와 disable flags만 native info notice로 표시한다. child/job 완료, 전체 진행률, 실제 service 상태를 추측하지 않는다.

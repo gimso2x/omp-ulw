@@ -13,6 +13,7 @@ class Host {
   flags = new Map<string, boolean>();
   entries: Array<{ type: string; customType?: string; data?: unknown }> = [];
   warnings: string[] = [];
+  notices: Array<{ level: string | undefined }> = [];
   commands = new Map<string, (args: string, ctx: UlwContext) => Promise<void>>();
   submitted: string | undefined;
   context: UlwContext;
@@ -20,7 +21,7 @@ class Host {
     this.context = {
       cwd, agent: { kind: "main" },
       sessionManager: { getSessionId: () => "test-session", getBranch: () => this.entries },
-      ui: { notify: message => { this.warnings.push(message); } },
+      ui: { notify: (message, level) => { this.notices.push({ level }); if (level === "warning") this.warnings.push(message); } },
     };
     const api: UlwApi = {
       registerCommand: (name, options) => { this.commands.set(name, options.handler); },
@@ -202,6 +203,69 @@ describe("Native ULW session behavior", () => {
     expect(host.prepare("ulw-loop task")).toBeUndefined();
     expect(host.entries).toHaveLength(0);
   });
+
+  test("status is local and read-only; off persists false, silences policy until an explicit /ulw, and restores", async () => {
+    const host = new Host();
+    const status = host.commands.get("ulw-status")!;
+    await status("", host.context);
+    expect(host.notices).toEqual([{ level: "info" }]);
+    expect(host.submitted).toBeUndefined();
+    expect(host.entries).toHaveLength(0);
+    const armedPrompt = host.prepare("ulw implement")!;
+    const before = structuredClone(host.entries);
+    await status("", host.context);
+    expect(host.notices.at(-1)).toEqual({ level: "info" });
+    expect(host.submitted).toBeUndefined();
+    expect(host.entries).toEqual(before);
+    expect(host.prepare("continue")?.systemPrompt).toEqual(armedPrompt.systemPrompt);
+
+    await host.commands.get("ulw-off")!("", host.context);
+    expect(host.notices.at(-1)).toEqual({ level: "info" });
+    expect(host.submitted).toBeUndefined();
+    expect(host.entries).toEqual([...before, { type: "custom", customType: "omo-ultrawork:state", data: false }]);
+    expect(host.prepare("continue")).toBeUndefined();
+    host.emit("session_compact");
+    expect(host.prepare("continue", "rpc")).toBeUndefined();
+
+    const restored = new Host();
+    restored.entries = [...host.entries];
+    restored.emit("session_start");
+    expect(restored.prepare("continue")).toBeUndefined();
+    restored.emit("session_tree");
+    expect(restored.prepare("continue")).toBeUndefined();
+
+    await restored.commands.get("ulw")!("again", restored.context);
+    expect(restored.prepare(restored.submitted!, "extension")?.systemPrompt[2]).toBe(armedPrompt.systemPrompt[2]);
+    expect(restored.entries.at(-1)).toEqual({ type: "custom", customType: "omo-ultrawork:state", data: true });
+    expect(restored.prepare("continue")?.systemPrompt).toEqual(armedPrompt.systemPrompt);
+  });
+
+  test("off from a never-armed session persists false and a plain ulw input rearms it", async () => {
+    const host = new Host();
+    await host.commands.get("ulw-off")!("", host.context);
+    expect(host.entries).toEqual([{ type: "custom", customType: "omo-ultrawork:state", data: false }]);
+    expect(host.prepare("continue")).toBeUndefined();
+    expect(host.prepare("ulw go")?.systemPrompt[2]).toContain("<omo-ulw-policy>");
+    expect(host.entries.at(-1)).toEqual({ type: "custom", customType: "omo-ultrawork:state", data: true });
+  });
+
+  test("status and off never change another session or a child agent", async () => {
+    const main = new Host();
+    main.prepare("ulw implement");
+    const other = new Host();
+    other.prepare("ulw other");
+    await other.commands.get("ulw-off")!("", other.context);
+    expect(main.prepare("continue")?.systemPrompt[2]).toContain("<omo-ulw-policy>");
+    expect(main.entries).toHaveLength(1);
+
+    const child = new Host();
+    child.context.agent.kind = "sub";
+    await child.commands.get("ulw-off")!("", child.context);
+    await child.commands.get("ulw-status")!("", child.context);
+    expect(child.entries).toHaveLength(0);
+    expect(child.submitted).toBeUndefined();
+    expect(child.prepare("continue")).toBeUndefined();
+  });
 });
 
 describe("evidence-bound ULW continuations", () => {
@@ -279,6 +343,32 @@ describe("evidence-bound ULW continuations", () => {
       writeFileSync(plan, "- [X] 1. Deliver the criterion\n");
       expect((host.emit("session_stop", { signal }) as Continued).continue).toBe(true);
       expect(host.emit("session_stop", { signal })).toBeUndefined();
+    } finally { rmSync(cwd, { recursive: true, force: true }); }
+  });
+
+  test("explicit off stops owned continuation until rearmed, while never-armed sessions keep legacy continuation", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "omo-ulw-test-"));
+    try {
+      const dir = join(cwd, "doc/ulw-loop/test-session");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "goals.json"), JSON.stringify({ status: "active", goals: [{ status: "pending" }] }));
+      const signal = new AbortController().signal;
+
+      const legacy = new Host(cwd);
+      expect((legacy.emit("session_stop", { signal }) as Continued).continue).toBe(true);
+
+      const host = new Host(cwd);
+      host.prepare("ulw go");
+      await host.commands.get("ulw-off")!("", host.context);
+      expect(host.emit("session_stop", { signal })).toBeUndefined();
+      const restored = new Host(cwd);
+      restored.entries = [...host.entries];
+      restored.emit("session_start");
+      expect(restored.emit("session_stop", { signal })).toBeUndefined();
+
+      await host.commands.get("ulw")!("again", host.context);
+      host.prepare(host.submitted!, "extension");
+      expect((host.emit("session_stop", { signal }) as Continued).continue).toBe(true);
     } finally { rmSync(cwd, { recursive: true, force: true }); }
   });
 });
