@@ -83,8 +83,8 @@ approach: <fill: the approach you intend to plan>
 
 ## Approval gate
 status: drafting
-<!-- When exploration is exhausted and unknowns are answered, set status: awaiting-approval. -->
-<!-- That durable record is the loop guard: on a later turn read it and resume at the gate instead of re-running exploration. -->
+<!-- Set status: awaiting-approval ONLY when a genuine owner decision or ambiguous scope/plan selection survives exploration; ask it once. An explicit plan request with none left already authorizes the plan: record approval: explicit plan request instead and write it. Implementation, commits, pushes and deploys are never authorized by either. -->
+<!-- When awaiting-approval, that durable record is the loop guard: on a later turn read it and resume at the gate instead of re-running exploration. -->
 `;
 }
 
@@ -112,7 +112,7 @@ export function buildPlanSkeleton(slug, intent) {
 **Risk:** <Low | Medium | High> - <one-line driver>
 ${decisionsLine}
 
-Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execution detail follows below.
+Your next move: <fill - the real next step: answer the one open owner decision, start execution via ulw-execute, or run a high-accuracy review; do not ask for plan approval the explicit request already gave>. Full execution detail follows below.
 
 ---
 
@@ -138,7 +138,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 
 ## Execution strategy
 ### Parallel execution waves
-> Target 5-8 todos per wave. Fewer than 3 (except the final) means you under-split.
+> Group todos into a wave only when their write paths, state and proof are disjoint; serialize todos that overlap in write scope. One cohesive change is ONE todo and can be ONE worker - the todo count is not a goal.
 
 ### Dependency matrix
 | Todo | Depends on | Blocks | Can parallelize with |
@@ -148,7 +148,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 > Implementation + Test = ONE todo. Never separate.
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
 - [ ] 1. <title>
-  What to do / Must NOT do: <...>
+  What to do / Must NOT do (name the allowed write paths): <...>
   Closes: GAP-<n>
   Parallelization: Wave <N> | Blocked by: <...> | Blocks: <...>
   References (executor has NO interview context - be exhaustive): <src/path:lines>
@@ -162,6 +162,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 ${FINAL_VERIFICATION_ITEMS.map((item) => `- [ ] ${item}`).join("\n")}
 
 ## Commit strategy
+> Name ONE stage/commit owner. Stage only owned paths - never git add -A or an unscoped stage while other workers' or the user's WIP is present; no worktree or commit unless explicitly authorised.
 
 ## Success criteria
 > One row per IS row. The plan is complete only when every IS row has a delivering todo and a proving QA scenario; F4 checks the delivered behavior against these rows 1:1, and a shortfall becomes new \`- [ ] N.\` rows, never a note.

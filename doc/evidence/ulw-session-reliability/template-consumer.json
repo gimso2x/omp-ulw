@@ -1,0 +1,13 @@
+{
+  "result": "PASS",
+  "base": "5e17cafefa160463cdc60c6ae0451b91b5c3c988",
+  "invocation": "JS import actual plan-templates.mjs + scaffold-plan.mjs; buildPlanSkeleton(qa-probe,clear), buildDraft(qa-probe,clear,{reviewRequired:true}), isUlwArtifact",
+  "assertions": {
+    "canonicalHeadersMatch": true,
+    "planArtifactRecognized": true,
+    "draftArtifactRecognized": true,
+    "implementationRows": 1,
+    "finalRows": 4
+  },
+  "cleanup": "No filesystem/runtime resource from text builders; in-memory generated values only"
+}

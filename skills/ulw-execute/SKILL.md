@@ -13,7 +13,7 @@ This conditional OMP-contract loading and same-session reuse policy applies thro
 
 ## ABSOLUTE RULE: YOU ARE AN ORCHESTRATOR — NEVER THE IMPLEMENTER
 
-**YOU DO NOT WRITE CODE. YOU DO NOT EDIT PRODUCT FILES. YOU DO NOT RUN QA YOURSELF. EVERY unit of implementation, test, QA, and review work MUST be delegated to a spawned subagent. NO EXCEPTIONS.** Your hands touch only plan selection, `doc/` state (Boulder, ledger, plan checkboxes), decomposition, dispatch, verdicts, and evidence records. About to edit a product file or run an implementation command yourself? **STOP. SPAWN A WORKER INSTEAD.** Orchestrate at **MAXIMUM PARALLELISM**: every independent unit runs concurrently; only named dependencies serialize.
+**YOU DO NOT WRITE PRODUCT CODE OR EDIT PRODUCT FILES YOURSELF. EVERY unit of implementation, test authoring, sub-task QA, and review work MUST be delegated to a spawned subagent.** Your hands touch only plan selection, `doc/` state (Boulder, ledger, plan checkboxes), decomposition, dispatch, verdicts, evidence records, and your own independent verification: you MAY run independent real-surface QA and integration checks (the actual consumer/entrypoint, the plan's verification commands once after integration) and record them as parent evidence. That verification is read-only for product files; a failure goes back to a worker with the exact failure, never fixed by you. About to edit a product file or run an implementation command yourself? **STOP. SPAWN A WORKER INSTEAD.** Parallelize only independent units (disjoint files, state and proof); units with overlapping write paths and named dependencies serialize.
 
 # ulw-execute
 
@@ -102,8 +102,8 @@ Landing rules, regardless of topology:
 2. Find the first unchecked column-0 checkbox in `## TODOs` or `## Final Verification Wave`.
 3. Ignore nested checkboxes under acceptance criteria, evidence, and definition-of-done sections.
 4. Classify the checkbox tier and record it in its ledger entry. Default is LIGHT — a narrow change inside existing layers. Take HEAVY only on a fact you can point to: a new module / abstraction / domain model; auth, security, or session; an external integration; a DB schema or migration; concurrency or transaction boundaries; a cross-domain refactor; or the plan or user signals care. When unsure, take HEAVY; upgrade and redo skipped gates the moment a HEAVY fact surfaces; never downgrade.
-5. Decompose that checkbox into atomic sub-tasks sized for ONE worker in ONE run — a sub-task that would need mid-flight steering is two sub-tasks. Collect every other unchecked checkbox in the same plan wave whose dependencies are met — their lanes execute concurrently. A wave that could split further but holds fewer than 3 independent sub-tasks is under-split.
-6. **DELEGATE EVERYTHING. YOU NEVER IMPLEMENT.** Route every sub-task through the delegation router below, then dispatch ALL independent sub-tasks across those checkboxes in one parallel worker-spawn burst (a single batched spawn call where the harness supports it); route named dependencies per the lane-topology decision above. Verification and checkbox marking stay per-checkbox.
+5. Decompose that checkbox into atomic sub-tasks sized for ONE worker in ONE run — a sub-task that would need mid-flight steering is two sub-tasks. One cohesive change (for example one file plus its test) is ONE sub-task and ONE worker; never split to reach a count. Collect every other unchecked checkbox in the same plan wave whose dependencies are met; their lanes run concurrently only when write paths, state and proof are disjoint, and lanes with overlapping write paths run serially.
+6. **DELEGATE IMPLEMENTATION. YOU NEVER IMPLEMENT.** Route every sub-task through the delegation router below, then dispatch the independent sub-tasks (disjoint write paths, state and proof) in one parallel worker-spawn burst (a single batched spawn call where the harness supports it); serialize overlapping write scopes and route named dependencies per the lane-topology decision above. Verification and checkbox marking stay per-checkbox, and the parent's independent real-surface verification is allowed per the absolute rule.
 7. Give every dispatched sub-task its completion condition and watch for it per the section below. A dispatch whose completion nobody watches is an unfinished dispatch.
 
 ### Monitor every dispatched subagent to its completion condition
@@ -121,7 +121,7 @@ When the plan annotates a todo with `Recommended task executor category:`, treat
 
 | Category | Route here |
 | --- | --- |
-| `quick` (low) | mechanical, single-file, boilerplate, config/copy — the default for every splittable piece |
+| `quick` (low) | mechanical, single-file, boilerplate, config/copy — the default for mechanical pieces |
 | `unspecified-low` (low) | small tasks that fit no other category |
 | `unspecified-high` (medium) | standard features across a few files with known patterns |
 | `visual-engineering` (medium) | frontend, UI/UX, styling, animation |
@@ -133,12 +133,12 @@ When the plan annotates a todo with `Recommended task executor category:`, treat
 
 Sizing is a two-branch decision made per checkbox, before dispatch:
 
-- **Splittable work splits.** When the checkbox decomposes into independent pieces, dispatch them as a swarm of `quick`/`unspecified-low` workers in ONE parallel burst — many small cheap workers in parallel beat one large delegation.
-- **Cohesive hard work stays whole.** When splitting would sever shared reasoning (one algorithm, one migration, one subtle bug), send the WHOLE problem to `deep-low`, `deep-high` or `ultrabrain` as ONE delegation. Never force-split work whose parts share one insight.
+- **Independent pieces run in parallel.** When the checkbox decomposes into pieces with disjoint files, state and proof, dispatch them in ONE parallel burst of the cheapest adequate workers. Piece count is never a goal; a checkbox that does not decompose is one worker.
+- **Cohesive work stays whole.** One cohesive change (a file plus its test, one algorithm, one migration, one subtle bug) is ONE worker; when splitting would sever shared reasoning, send the WHOLE problem to `deep-low`, `deep-high` or `ultrabrain` as ONE delegation. Never force-split work whose parts share one insight or write path.
 
 Each sub-task message must include:
 
-1. Goal and exact files or directories in scope.
+1. Goal, exact files or directories in scope, and the ALLOWED WRITE PATHS: the only paths this worker may modify; everything else is read-only.
 2. The tests already covering the touched behavior, READ before any edit as the behavior of record (intent, coverage, pass); a bug's reproduction captured before the fix. A new test ONLY where the repository keeps tests for this behavior AND a regression would otherwise pass unnoticed by the sub-task's Manual-QA scenario — never one that mirrors its implementation (mock-call assertions, pinned constants) or restates the change.
 3. Implementation constraints from the plan and project rules.
 4. Automated verification commands to run.
@@ -151,6 +151,12 @@ Each sub-task message must include:
 6. The adversarial classes that apply to this sub-task (from the 9 ultraqa classes) and how each is probed.
 7. Required artifact path and cleanup receipt.
 8. Tool-use expectations: batch independent tool calls in parallel; when the harness exposes a code-execution surface (eval), use it for multi-call steps instead of one-by-one calls.
+
+### Write scope and stage/commit ownership
+
+- **Allowed write paths per dispatch.** Concurrent lanes must have disjoint allowed write paths. Lanes that overlap (same file, generated artifact, shared state or contract) run serially: read the earlier lane's result back before the next starts. Separate worktrees isolate lanes only where branch/commit delivery was explicitly authorised; never create a worktree or commit to manufacture isolation.
+- **One stage/commit owner per worktree.** Name exactly one owner (default: the orchestrator) in the ledger. Workers never stage, commit, stash, reset, checkout or revert; they report their changed paths. Commit only when the plan's Commit line is `Y` or the user asked for commits; otherwise record `no-commit: user has not authorized commits` and leave the verified unstaged diff.
+- **Scoped staging only.** Before any stage, inspect the working tree for other WIP (other workers, other sessions, the user's dirty files). While any WIP outside the owned paths exists, never use `git add -A`, `git add .`, `git commit -a` or any unscoped stage; stage explicit owned paths only and confirm the staged list equals them before committing.
 
 The 9 ultraqa classes are trigger-mapped: new input parsing → malformed input; untrusted external text → prompt injection; resumable or long-running flows → cancel/resume; generated or cached artifacts → stale state; uncommitted user files in scope → dirty worktree; long external commands → hung or long commands; new or timing-sensitive tests → flaky tests; log-based success claims → misleading success output; mid-operation interrupts → repeated interruptions. A class applies when its trigger fact holds. Probe each applicable class; record the rest as not-applicable with a one-line reason.
 
@@ -212,7 +218,7 @@ Only after verification passes:
 
 When all top-level checkboxes in `## TODOs` and `## Final Verification Wave` are complete:
 
-1. Delegate the plan’s final verification commands to fresh verification workers and independently audit their artifacts.
+1. Run the plan’s final verification commands once through fresh verification workers or the parent as independent verifier, and independently audit their artifacts.
 2. For PR/branch work, finish the lifecycle from the last phase's worktree: sync `doc/` state back to the main repo, create or update the PR, wait for review/verification gates, merge only with explicit user authorisation, and remove the worktree only after successful merge or explicit handoff.
 3. Remove or mark the Boulder work as completed.
 4. Print an `ORCHESTRATION COMPLETE` block with the plan path, verification commands, artifacts, and cleanup receipts.
@@ -222,8 +228,8 @@ When all top-level checkboxes in `## TODOs` and `## Final Verification Wave` are
 - No production change before the tests covering that behavior were read and a bug's reproduction captured; existing tests are green on the unchanged code first, and one that contradicts the intent is a FINDING, never edited green.
 - No `--dry-run` as completion evidence.
 - No tests-only completion claim. A Manual-QA artifact is required.
-- **NO DIRECT IMPLEMENTATION BY THE ORCHESTRATOR.** Root NEVER edits product files, writes tests, or runs QA itself — a spawned worker does.
+- **NO DIRECT PRODUCT IMPLEMENTATION BY THE ORCHESTRATOR.** Root NEVER edits product files or writes tests itself — a spawned worker does. Root MAY run independent real-surface QA and integration checks and records them as its own evidence.
 - No completion claim while an applicable ultraqa adversarial class was never probed. Each applicable class needs a captured observable result; each skipped class needs a one-line not-applicable reason in the ledger.
-- For authorised branch delivery, implementation and review use owned worktrees. Without that authorisation use disjoint owned local scopes and preserve dirty user files; never manufacture commits to create isolation.
+- For authorised branch delivery, implementation and review use owned worktrees. Without that authorisation use disjoint owned local scopes and preserve dirty user files; never manufacture commits to create isolation. Stage and commit only through the single named owner, with owned paths only (see Write scope and stage/commit ownership).
 - No unprefixed session ids in Boulder state. Sessions are always recorded as `omp:<run-id>`.
 - No stale-memory execution. The plan and ledger are the durable source of truth.

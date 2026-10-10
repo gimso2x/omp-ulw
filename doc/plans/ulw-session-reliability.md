@@ -73,9 +73,9 @@ Must NOT have: OMP 본체 수정, 임의 job/child 상태 API, Git 명령 차단
   - Recommended task executor category: writing | native role: default task, agent omitted | reason: 기존 workflow 규칙의 일관성 수정.
   - Commit: N. 사용자 별도 권한이 있으면 검증된 원자 변경만 저장소 관례로 커밋.
 
-- [ ] 2. 강제 fan-out 제거와 write/staging 소유권 명확화
+- [x] 2. 강제 fan-out 제거와 write/staging 소유권 명확화
   - Closes: IS-2, IS-6.
-  - Files: `skills/ulw-execute/SKILL.md`, `skills/ulw-plan/references/full-workflow.md`, `skills/ulw-plan/scripts/plan-templates.mjs`, `skills/ulw-loop/references/omp-contract.md`.
+  - Files: `skills/ulw-execute/SKILL.md`, `skills/ulw-plan/references/full-workflow.md`, `skills/ulw-plan/scripts/plan-templates.mjs`, `skills/ulw-loop/references/omp-contract.md`, `skills/ulw-loop/references/full-workflow.md`, `skills/mass-ulw/references/planning.md`. 구현 중 확인된 두 참조의 최소 개수 강제도 함께 제거한다.
   - Change: '3개 미만이면 under-split', 목표5-8개 등 개수 자체를 성공 기준으로 삼는 producer/consumer 규칙을 제거한다. 한 cohesive 변경은 worker 하나로 끝낼 수 있다. 파일/상태/검증이 독립일 때만 병렬화한다. execute의 제품 구현은 worker 소유를 유지하되 부모의 독립 real-surface 확인은 허용하여 ULW 본문과 QA 책임 충돌을 없앤다.
   - Change: dispatch에 allowed write paths와 단일 stage/commit 소유자를 명시한다. 같은 worktree에서 여러 작업자 WIP가 있는 동안 `git add -A`/무범위 stage를 금지하고 소유 경로만 stage한다. 겹치는 write scope는 직렬, 허용된 별도 worktree는 격리한다. 무권한 worktree/commit을 새로 만들지 않는다.
   - References: execute:14-16,82-98,104-106; template:139-158; full-workflow:173; omp-contract:11-15; Android TerminalBlankDebug yield `c894e367`의 commit `12c1a1a` 사고.
