@@ -15,7 +15,7 @@ Read [the native OMP contract](../../ulw-loop/references/omp-contract.md) before
 Read this when INTENT ROUTING resolved to CLEAR: the user knows the desired outcome and the only open items are preferences/tradeoffs the repo cannot answer. Also entered from the on-the-fence tie-break (ask exactly one question).
 
 <stance>
-The user owns the outcome; genuine forks exist that only they can decide. Research first to ground, THEN ask the surviving forks. You are a peer asking only what you genuinely cannot resolve - not an interrogator gathering a feature list. High-accuracy review is optional only when `review_required` is false; if the user already asked for high accuracy, run the review after approval instead of offering it.
+The user owns the outcome; genuine forks exist that only they can decide. Research first to ground, THEN ask the surviving forks. You are a peer asking only what you genuinely cannot resolve - not an interrogator gathering a feature list. High-accuracy review is optional only when `review_required` is false; if the user already asked for high accuracy, run the review after the plan is written instead of offering it.
 </stance>
 
 <research_protocol>
@@ -31,11 +31,11 @@ ASK WITH WHY: name what you explored, why it did not resolve, and which part of 
 
 FOGGIEST-GAP targeting (ordinal, NO numbers): each turn aim at the single open gap whose resolution most unblocks the plan, and say why in one sentence; rotate across equally-foggy components. End every turn with the question or the explicit next step - never passive.
 
-CLEARANCE CHECK after each turn: affected user named, ideal-state and gap rows recorded? objective defined? scope IN/OUT explicit? approach decided? test strategy confirmed? constraints swept (budget / stack / scale / audience - each explored, defaulted, or asked)? no blocking ambiguity left? Any NO is your next question; all YES -> present the approval brief and stop.
+CLEARANCE CHECK after each turn: affected user named, ideal-state and gap rows recorded? objective defined? scope IN/OUT explicit? approach decided? test strategy confirmed? constraints swept (budget / stack / scale / audience - each explored, defaulted, or asked)? no blocking ambiguity left? Any NO is your next question; all YES -> if an owner decision survives present the approval brief and stop, otherwise write the plan under the explicit request.
 </interview>
 
 <approval_and_deliver>
-Run the durable approval gate (mechanics in `full-workflow.md`): present the brief once with findings (paths), the approach, and EVERY surviving owner-decision as an explicit question with your recommended option (only a skipped defaultable fork resolves to that default); then ask the explicit plan-creation decision through native OMP ask under stance-calibration.md. No answer is not approval. If "start now, or review first?" would be your ONLY question, you have defaulted forks you should have surfaced - list them first. After approval: scaffold the files, run mandatory Plan Consultant, APPEND the todos, fill the human TL;DR last. Then either run the high-accuracy review if `review_required: true`, or present the handoff explanation (full-workflow.md Phase 4 format). Never pick for the user when review was not requested; never begin execution.
+Run the durable approval gate (mechanics in `full-workflow.md`) only when a genuine owner-decision or ambiguous scope/selection survives; with none, the explicit plan request already authorizes writing the plan (SKILL.md "Explicit plan request") and you ask NO generic plan-creation question. When the gate runs: present the brief once with findings (paths), the approach, and EVERY surviving owner-decision as an explicit question with your recommended option (only a skipped defaultable fork resolves to that default); then ask the decision through native OMP ask under stance-calibration.md. No answer is not approval. If "start now, or review first?" would be your ONLY question, you have defaulted forks you should have surfaced - list them first. Then (after the answer, or at once when none was needed): scaffold the files, run mandatory Plan Consultant, APPEND the todos, fill the human TL;DR last. Then either run the high-accuracy review if `review_required: true`, or present the handoff explanation (full-workflow.md Phase 4 format). Never pick for the user when review was not requested; never begin execution, and plan authorization never grants implementation, commit, push or deploy permission.
 </approval_and_deliver>
 
 <worked_example>
@@ -45,5 +45,5 @@ Request: "add a 5/min-per-IP rate-limit to `/login`".
 3. One fork the ideal state settles, recorded not asked: storage backend = Redis (one count across nodes; in-memory would reset per node). One surviving owner-decision, asked WITH WHY:
    - Over-limit response (default = 429 + Retry-After; options 429 / 423 / silent drop) - why: a client contract the user lives with.
    - Swept axes: no budget/audience fork (internal service); scale bound = existing Redis capacity (defaulted, reversible).
-4. Approval brief -> explicit okay -> scaffold -> append todos -> run the adversarial reviewer high-accuracy review (default-on unless the user explicitly opted out) and deliver the receipt.
+4. Owner-decision answered (the explicit plan request already authorizes writing; no extra generic approval question) -> scaffold -> append todos -> run the adversarial reviewer high-accuracy review (default-on unless the user explicitly opted out) and deliver the receipt.
 </worked_example>

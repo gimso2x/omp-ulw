@@ -42,19 +42,19 @@ Do ALL of this immediately after the plan is selected, BEFORE the first implemen
 
 1. Read `doc/boulder.json` if it exists.
 2. List work plan files under `doc/plans/`.
-3. If `plan-name` was provided, select the matching plan.
-4. If exactly one active or paused Boulder work exists for this session, resume it.
-5. If no active work exists and exactly one plan exists, select it.
-6. If no active work exists and there is no selectable plan, enter **No-plan bootstrap**.
-7. If multiple plans remain possible, ask one focused selection question.
+3. Select in this strict order, stopping at the first match: (a) an explicit `plan-name` argument matches a plan; (b) exactly one active or paused Boulder work owned by this session — resume it; (c) exactly one selectable plan.
+4. If several plans or works remain possible, or the selected existing plan conflicts with the user's latest stated goal, ask ONE focused selection/scope question (which plan, or existing plan vs. new scope) and do nothing else until answered. Do not bootstrap and do not silently pick.
+5. If the user explicitly asks for a NEW plan or a new goal, generate it with its own review scope instead of reusing an old plan.
+6. Only when no selectable plan exists, enter **No-plan bootstrap**.
+7. Record the selected plan path, and the review digest/revision if the plan or its draft already carries one, in the first goal ledger entry and Boulder handoff. If no review receipt exists, write "no review receipt"; never invent or imply one.
 
 ### No-plan bootstrap
 
-When the user explicitly said `start work` / `$ulw-execute` and no selectable plan exists, treat that phrase as approval: bootstrap `ulw-plan` to create the approved plan before execution and implementation, instead of stalling or asking for generic approval again. A brief or notes file without waves, checkboxes, and acceptance criteria is NOT decision-complete — enter this bootstrap too.
+When the user explicitly said `start work` / `$ulw-execute` and Phase 1 found NO selectable plan (no explicit plan-name match, no owned active/paused work, no plan under `doc/plans/`), that phrase authorizes generating the prerequisite plan: bootstrap `ulw-plan` to create it before execution and implementation, instead of stalling or asking a generic approval question. Bootstrap is never chosen while any plan is selectable, and never on the strength of an inferred "latest" recommendation or goal. A brief or notes file without waves, checkboxes, and acceptance criteria is NOT decision-complete — enter this bootstrap too. Generating the prerequisite plan preserves the user's original explicit execution request: it neither revokes implementation already authorized nor adds commit, push or deploy permission; those remain governed by what the user actually granted.
 
 1. Invoke the `ulw-plan` skill from the current request and require its dynamic adversarial workflow: collect, verify, design, adversarial plan-review, synthesize.
-2. The generated work plan must be saved under `doc/plans/<slug>.md` before implementation or Boulder state writes that point at plan work.
-3. Use maximum safe parallelism in the generated plan: independent files/tasks fan out; same-file writes, shared state, and named dependencies serialize.
+2. The generated work plan must be saved under `doc/plans/<slug>.md` before implementation or Boulder state writes that point at plan work. Record that it was bootstrapped without the curated review gate; do not claim a review receipt.
+3. Use safe parallelism in the generated plan only where files, state and verification are independent; same-file writes, shared state, and named dependencies serialize.
 4. Preserve safety boundaries. Ask one focused question only when the objective is missing, destructive, or has a safety/product ambiguity that repository exploration cannot resolve.
 5. After the plan exists, continue directly to Phase 2.
 
@@ -160,7 +160,7 @@ For each checkbox, complete all five gates before marking it done:
 
 1. Plan reread: confirm the checkbox and acceptance criteria.
 2. Automated verification: run tests, typecheck, lint, build, or the plan-specific equivalent.
-3. Manual-QA channel: capture a real artifact, not a dry-run claim.
+3. Manual-QA channel: capture a real artifact, not a dry-run claim. It must exercise the plan's core behavior through the actual consumer/entrypoint at the revision under test and record a binary observable plus that revision; see Core-behavior acceptance below.
 4. Adversarial QA: exercise every class the Phase 3 trigger map marks applicable and capture the observable result for each.
 5. Cleanup: register every QA resource teardown as its own todo when spawned (QA scripts, tmux assets, browser sessions, PIDs, ports, containers, temp dirs), execute each, and capture the receipt. No QA asset is left running.
 
@@ -197,6 +197,7 @@ Rules:
 - A worker done claim must be independently verified before it becomes checkbox completion.
 - On any non-confirmed verdict, append the feedback to the ledger, reset the checkbox work to in-progress, and re-dispatch the executor with the exact failure.
 - The verifier must probe the applicable adversarial keys, including `stale_state`, `dirty_worktree`, and `misleading_success_output`, before allowing `FullyDone`.
+- **Core-behavior acceptance.** A done claim or verifier verdict counts only if it proves the ORIGINAL request's core behavior at the real consumer/entrypoint that will be delivered, against the named source revision, with a binary PASS/FAIL observable. A header, list, fixture, exit 0, passing log, grep hit, or worker assertion alone is `needs-fix`, never `confirmed`. Example: a list screen visible but the terminal pane blank is FAIL; a CLI that passes only on a fixture the real entrypoint never reads is FAIL. When existing checks cannot catch the defect, reproduce it against the known-bad prior revision or an isolated mutation and show the fixed revision differs. Not every prose-only change needs a mutation.
 
 ## Phase 5: Mark progress
 

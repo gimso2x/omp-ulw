@@ -14,7 +14,7 @@ Read [the native OMP contract](../../ulw-loop/references/omp-contract.md) before
 
 High-accuracy review is default-on for CLEAR and UNCLEAR plans unless the user explicitly declines. One round is exactly one fresh native reviewer assigned read-only adversarial plan review, capped at five rounds (unlimited only on explicit user request). Notes-only approval counts as approval. Only an explicitly activated planning workflow invokes this gate; bare ULW self-reviews its notepad instead.
 
-The no-plan execution bootstrap is the narrow exception: explicit ulw-execute authorizes generating the prerequisite plan, not another generic approval question. Preserve collect/verify/design/adversarial/synthesize; skip the curated consultant/reviewer gate which OMP does not expose, state the exception and offer a separate explicit planning review. A standalone planner never starts implementation.
+The no-plan execution bootstrap is the narrow exception: explicit ulw-execute authorizes generating the prerequisite plan, not another generic approval question, and it is entered only when no plan is selectable or the user explicitly requested a new plan. Preserve collect/verify/design/adversarial/synthesize; skip the curated consultant/reviewer gate which OMP does not expose, state the exception, record "no review receipt" rather than implying one, and offer a separate explicit planning review. A standalone planner never starts implementation.
 
 # ulw-plan - full workflow
 
@@ -138,12 +138,14 @@ Apply the persisted lifecycle transition table as lead-owned durable updates. Ma
 ## Approval gate (DO NOT SKIP)
 This gate is the only thing between a finished brief and the plan file, and the one place a planner can loop. Handle it as a decision with durable state, not a passphrase hunt.
 
+**Explicit plan request (authoritative; supersedes the generic Approve question below and in the intent references).** When the user explicitly asked for a plan (or `/ulw-execute` bootstrap invoked this skill) and exploration leaves no genuine owner-decision and no ambiguous scope or plan selection, that request already authorizes writing the plan. Do NOT ask a generic "may I write the plan?" / Approve question; record `approval: explicit plan request` in the draft, write the plan, and deliver the summary. Ask exactly ONE focused question only when scope or selection is ambiguous (which plan, existing plan vs. new goal) or a genuine owner-decision survives the two filters. This authorizes writing plan artifacts only: implementation, commits, pushes, deploys, spend and other owner decisions remain separate permissions. The gate below applies only when such an open item exists or the user asked to review the approach first. The `/ulw-execute` bootstrap writes no review receipt: state that no high-accuracy review ran and never imply one.
+
 When exploration is exhausted and the unknowns are answered:
 1. Write the gate into `doc/drafts/<slug>.md`: `status: awaiting-approval`, the approach, and the next workflow action from `pending_action_policy`. Approval authorizes only plan creation; high-accuracy review runs afterward because it is default-on or was explicitly requested. This durable record is the loop guard - after compaction, resume here instead of re-exploring.
 2. Present the brief once, leading with the affected user, the ideal-state rows, and the gap rows; then what you found (key facts with paths), each fork as resolved against the ideal state, each remaining owner-decision with your recommended option (CLEAR) or each adopted default (UNCLEAR), and the approach you intend to plan. You MUST explain the post-approval sequence: on your okay, I will write the plan, run read-only gap consultant gap analysis, then run adversarial reviewer review rounds (fresh session each, max 5 by default). Then ask one planning decision through native OMP ask, recommended first: **Approve**; **Approve, skip review** (ONLY for default-on review, never explicitly requested review or execution bootstrap); **Change approach**. Follow the current ask schema with no wait flag. A timed-out, dismissed, empty or unavailable answer is not approval, even if best judgment is suggested: keep `status: awaiting-approval`, write no plan and end the turn. If ask is unavailable, state that once and await the explicit decision in chat. Host permission-channel rules and the execution-bootstrap exception remain binding. See `stance-calibration.md`.
 
 Then read the user's next reply as a decision:
-- **Approval** - any reply after the brief that accepts the approach: "yes", "approve", "proceed", "write the plan", or answering the open ambiguities. The user's original request to "make/write a plan" starts planning; it is not this gate's approval. Approval authorizes exactly one thing: writing the plan file. It is **never authorization to implement** - you stay a planner.
+- **Approval** - any reply after the brief that accepts the approach: "yes", "approve", "proceed", "write the plan", or answering the open ambiguities. Approval authorizes exactly one thing: writing the plan file. It is **never authorization to implement** - you stay a planner. (When no brief was needed - see Explicit plan request above - the user's explicit plan request already served as this authorization.)
 - **Scope change** - a reply that alters the approach. Fold it into the draft, update the brief, re-present once.
 - **Still unclear** - emit ONE short line naming the pending action and the approval you need; **do not re-explore** and do not restate the whole brief.
 
@@ -155,6 +157,7 @@ No Plan Consultant, no plan file, no execution until the user approves. The UNCL
 3. APPEND todo batches into the `## Todos` region with edit/apply_patch - never rewrite the script-emitted headers; 50+ todos is fine; one request -> one plan.
 4. Fill `## TL;DR (For humans)` LAST, after the detailed plan, so it summarizes the real plan, not an intention.
 5. Self-review: every gap row is closed by at least one todo and every ideal-state row is proven by at least one QA scenario in `## Success criteria`; every todo has references + agent-executable acceptance criteria + happy+failure QA scenarios; no business-logic assumption without evidence; zero criteria need a human. HR6 backstop - confirm the plan's FIRST `## ` heading is `## TL;DR (For humans)` and that every header below it appears in the template order; if you ever hand-built or reordered the file, the human summary must still lead.
+6. Core-behavior acceptance: for every todo that delivers user-facing behavior, acceptance names the original request's core behavior, the real consumer/entrypoint, a binary PASS/FAIL observable and the source revision checked. A header, list, fixture, exit 0 or worker claim alone never closes it; if existing checks could not catch the defect, QA contrasts a known-bad prior revision or isolated mutation with the fixed one. Pure prose changes need no mutation.
 
 ### Plan template (these are the headers the script emits - keep them verbatim)
 ```
@@ -193,7 +196,7 @@ Every "present the plan summary/brief" above delivers THIS structure, in the use
 3. **Shape** - how many phases/waves and how many tasks: N implementation todos (`- [ ] N.` rows) + F final-verification tasks (`- [ ] F<n>.` rows), plus the executor-category mix (e.g. 6x `quick`, 2x `unspecified-high`, 1x `ultrabrain`).
 4. **Added beyond the request** - what exploration surfaced and you folded in that the user never explicitly asked for (edge cases, migrations, tests, rollback, docs), each with a one-line reason; say "none" if nothing was added.
 5. **Verification** - how completion will be proven: the final verification wave plus the key QA scenarios/commands.
-6. **Execution handoff** - execution runs via `/ulw-execute <plan-name>` in THIS session or a NEW session, whichever the user prefers. Introduce the options: `--worktree <absolute-path>` (task-owned worktree; required for PR/branch work), `--make-pr` (deliver as a PR; auto-creates a task-owned worktree), `--ship` (implies `--make-pr`, keeps working until the PR is reviewed and MERGED).
+6. **Execution handoff** - execution runs via `/ulw-execute <plan-name>` in THIS session or a NEW session, whichever the user prefers; name the exact plan path and, when a completed high-accuracy review exists, its plan digest/round so the executor records the existing receipt instead of inventing one. Introduce the options: `--worktree <absolute-path>` (task-owned worktree; required for PR/branch work), `--make-pr` (deliver as a PR; auto-creates a task-owned worktree), `--ship` (implies `--make-pr`, keeps working until the PR is reviewed and MERGED).
 
 ### High-accuracy review (fresh native reviewer)
 
@@ -243,5 +246,5 @@ Allowed roles are native scout and read-only advisory/reviewer assignments selec
 
 ## Stop rules
 - Plan file exists, template filled, every todo has references + acceptance + QA + commit, dependency matrix consistent, and any required high-accuracy receipts recorded: present the handoff explanation (Phase 4 format), then (CLEAR without `review_required`) ask the start-or-high-accuracy question, or (CLEAR with `review_required` / UNCLEAR) report the review result - and stop. Execution belongs to the worker, never to you.
-- Brief presented and `status: awaiting-approval` recorded: wait. Do not re-explore unless the user changes scope.
+- Brief presented, a genuine owner decision or scope question open, and `status: awaiting-approval` recorded: wait. Do not re-explore unless the user changes scope. With no such open item the explicit plan request is the authorization and there is no gate to wait on.
 - Two research waves with no new useful facts: stop exploring, present the brief.

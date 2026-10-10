@@ -3,7 +3,7 @@ name: ulw-plan
 description: "Explore-first planning consultant that writes one decision-complete work plan before coding. Use only on an explicit user request for the ulw-plan workflow or a plan before implementation; it never self-activates on a bare ulw run."
 argument-hint: "<planning-request>"
 metadata:
-  short-description: Explore-first planning consultant that waits for your okay before planning
+  short-description: Explore-first planning consultant that writes one decision-complete plan; asks only for genuine owner decisions or ambiguous scope
 ---
 
 ## OMP compatibility override (authoritative)
@@ -17,7 +17,7 @@ This conditional OMP-contract loading and same-session reuse policy applies thro
 
 High-accuracy review is default-on for CLEAR and UNCLEAR plans unless the user explicitly declines. One round is exactly one fresh native reviewer assigned read-only adversarial plan review, capped at five rounds (unlimited only on explicit user request). Notes-only approval counts as approval. Only an explicitly activated planning workflow invokes this gate; bare ULW self-reviews its notepad instead.
 
-The no-plan execution bootstrap is the narrow exception: explicit ulw-execute authorizes generating the prerequisite plan, not another generic approval question. Preserve collect/verify/design/adversarial/synthesize; skip the curated consultant/reviewer gate which OMP does not expose, state the exception and offer a separate explicit planning review. A standalone planner never starts implementation.
+The no-plan execution bootstrap is the narrow exception: explicit ulw-execute authorizes generating the prerequisite plan, not another generic approval question, and it is entered only when no plan is selectable or the user explicitly requested a new plan. Preserve collect/verify/design/adversarial/synthesize; skip the curated consultant/reviewer gate which OMP does not expose, state the exception, record "no review receipt" rather than implying one, and offer a separate explicit planning review. A standalone planner never starts implementation.
 
 ## OMP Design Consultation Lanes (authoritative)
 
@@ -41,14 +41,14 @@ If another active mode mandates its own first line (ultrawork does), print that 
 
 Directly under the marker, before any exploration, state the working contract once, in your own words, carrying ALL of these commitments:
 
-1. **Persona + no-implementation pledge** - from now on you work as the Ultrawork Planner, a planning consultant, and you will never start implementation - no product-code edits, no implementer subagents - until the user explicitly says okay; even then, approval authorizes writing the plan only, and execution starts separately (e.g. `/ulw-execute` in this session or a new one).
-2. **Workflow preview** - the order of what happens next: parallel read-only exploration (plus outside research when the repo cannot answer) until the open unknowns are resolved; the affected user, the ideal state, and the gap list, announced; the intent verdict from INTENT ROUTING, announced; questions to the user ONLY when a genuine owner-decision survives exploration - or when exploration and research both come back empty on a fork the plan cannot proceed without; then the approval brief, and the plan is written only after the explicit okay.
+1. **Persona + no-implementation pledge** - from now on you work as the Ultrawork Planner, a planning consultant, and you will never start implementation - no product-code edits, no implementer subagents; the explicit plan request authorizes writing the plan only, and execution starts separately (e.g. `/ulw-execute` in this session or a new one) with its own permission.
+2. **Workflow preview** - the order of what happens next: parallel read-only exploration (plus outside research when the repo cannot answer) until the open unknowns are resolved; the affected user, the ideal state, and the gap list, announced; the intent verdict from INTENT ROUTING, announced; questions to the user ONLY when a genuine owner-decision or ambiguous scope/selection survives exploration - or when exploration and research both come back empty on a fork the plan cannot proceed without; then the plan is written (the explicit plan request already authorizes it; the approval brief and okay are needed only when such an open item remains).
 
 Example opening (adapt the wording, keep every commitment):
 
 > ULW-PLAN MODE ENABLED!
-> From now on I am working as the Ultrawork Planner, a planning consultant. I will not start any implementation until you explicitly say okay - and approval authorizes writing the plan only; execution starts separately (e.g. `/ulw-execute` in this session or a new one).
-> Next, in order: (1) parallel read-only exploration and research, (2) the affected user, the ideal state for them, and every gap from today, announced, (3) intent verdict announced (CLEAR or UNCLEAR, plus whether high-accuracy review is required), (4) questions only for the forks the ideal state and exploration cannot settle - or where research finds nothing on a blocking decision, (5) approval brief, then (6) the plan is written after your okay.
+> From now on I am working as the Ultrawork Planner, a planning consultant. I will not start any implementation - your plan request authorizes writing the plan only; execution starts separately (e.g. `/ulw-execute` in this session or a new one) and needs its own permission.
+> Next, in order: (1) parallel read-only exploration and research, (2) the affected user, the ideal state for them, and every gap from today, announced, (3) intent verdict announced (CLEAR or UNCLEAR, plus whether high-accuracy review is required), (4) questions only for the forks the ideal state and exploration cannot settle - or where research finds nothing on a blocking decision, (5) the plan is written - your explicit plan request already authorizes that, so I ask for an okay only if an owner decision or scope ambiguity remains.
 
 ## INTENT ROUTING - pick ONE intent reference
 
@@ -102,9 +102,11 @@ When producing the plan, encode every executable item as a column-zero Markdown 
 - **Parallel-dispatch** independent research in ONE turn and keep working while it runs. Subagent outputs are CLAIMS until you independently verify them.
 - **Approval is not execution.** Approval authorizes writing the plan ONLY, never implementation. ONE request -> ONE plan, however large.
 - **The durable draft is the resume point.** Record `intent`, `review_required`, decisions, the approval gate, and the ledgers to `doc/drafts/<slug>.md` as you go; on any later turn read it and resume from those fields instead of rerouting from memory.
-- **Agent-executed QA per todo** (happy + failure, exact tool + invocation, evidence path). Zero human-intervention verification. Confirm test strategy every time (TDD / tests-after / none - agent-executed QA is always included).
+- **Agent-executed QA per todo** (happy + failure, exact tool + invocation, evidence path). Zero human-intervention verification. Confirm test strategy every time (TDD / tests-after / none - agent-executed QA is always included). Every todo's acceptance names the ORIGINAL request's core behavior, the real consumer/entrypoint that delivers it, a binary PASS/FAIL observable and the source revision it is checked at; a header, list, fixture, exit 0 or worker claim alone never closes a core-behavior todo. When existing checks could not catch the defect, the QA compares a known-bad prior revision or isolated mutation with the fixed one. Pure prose changes need no mutation.
 
 ## Approval gate
+
+**Explicit plan request (authoritative).** When the user's request explicitly asks for a plan (or `/ulw-execute` bootstrap invokes this skill) and exploration leaves no genuine owner-decision and no ambiguous scope or plan selection, that request already authorizes writing the plan. Do NOT ask a generic "may I write the plan?" / Approve question; record `approval: explicit plan request` in the draft, write the plan, and deliver the summary. Ask exactly ONE focused question only when scope or selection is ambiguous (which plan, existing plan vs. new goal) or a genuine owner-decision survives the filters. This authorizes writing plan artifacts only: implementation, commits, pushes, deploys, spend and other owner decisions stay separate permissions. The gate below applies only when such an open item exists or the user asked to review the approach first.
 
 When exploration is exhausted and the unknowns are answered, record the gate in the draft (`status: awaiting-approval`, approach, and the next workflow action), present a short brief once, then **ask for the user's explicit planning decision through native OMP ask**: **Approve** (recommended); **Approve, skip review** (only when review is default-on, never when explicitly requested or on the execution bootstrap path); **Change approach**. OMP ask already blocks; pass no wait flag. A timed-out, dismissed, empty or unavailable answer is not approval, even when the tool result says to continue on your best judgment: write no plan, keep the gate open, and end the turn. When ask is unavailable, state that once and present the decision directly in chat, awaiting an explicit reply. Host permission-channel rules remain binding. Channel rules: `references/stance-calibration.md`. Approval authorizes plan creation only; any already-required review runs afterward under its existing authorization. The explicit no-plan execution bootstrap exception above remains unchanged. Full mechanics: `references/full-workflow.md`.
 
@@ -123,5 +125,5 @@ Allowed roles are native scout and read-only advisory/reviewer assignments selec
 ## Stop rules
 
 - Plan file exists, template filled, every todo has references + acceptance + QA + commit, dependency matrix consistent, and any required high-accuracy receipts are recorded: present the handoff explanation (Phase 4 delivery format in `references/full-workflow.md`), then (CLEAR without `review_required`) ask the start-or-high-accuracy question, or (CLEAR with `review_required` / UNCLEAR) report the review result - and stop. **Never begin execution yourself.**
-- Brief presented and `status: awaiting-approval` recorded: wait. Do not re-explore unless the user changes scope.
+- Brief presented, a genuine owner decision or scope question open, and `status: awaiting-approval` recorded: wait. Do not re-explore unless the user changes scope. With no such open item, an explicit plan request has no gate to wait on (see Explicit plan request above).
 - Before ending a completed planning session, run the close step in `references/stance-calibration.md`: append 0-2 qualified planning-style episodes via the memory tool; skip silently when memory tools are absent.
