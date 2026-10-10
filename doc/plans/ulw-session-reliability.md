@@ -137,14 +137,14 @@ Must NOT have: OMP 본체 수정, 임의 job/child 상태 API, Git 명령 차단
 
 최종 검증은 한 소유자가 suite/host를 실행하고 다른 검토자는 해당 evidence와 frozen bytes를 읽는다. 같은 전체 검사를 네 번 돌리지 않는다. 결과는 요청된 구현 범위와 미검증 모델 행동을 구분한다.
 
-- [ ] F1. 계약·권한·기존 사용자 변경 보존 확인
-  - Read-only reviewer: task1-3 scenario matrix, plan 선택/최초 요청 권한, README 사전 diff 보존, staged diff 없음 확인. Evidence `F1-contract.md`.
-- [ ] F2. 세션·provider·continuation 독립 코드 검토
-  - Read-only reviewer: false-trigger/child isolation/off restore/legacy continuation/flags와 control 명령 비LLM 동작을 source+task4/6 evidence로 확인. Evidence `F2-runtime.md`.
-- [ ] F3. 실제 host 표면과 resource cleanup 증거 확인
-  - 단일 QA 소유자의 `bun test`/host 결과, 실제 RPC id와 request count, payload byte 측정, teardown receipt를 독립 확인한다. Evidence `F3-surface.md`.
-- [ ] F4. 이상 상태·정책 축약 보존과 한계 확인
-  - IS1-6을 변경/증거에 매핑한다. prose 효과·비용 감소·실제 cron/Slack 동작을 미실행 상태에서 PASS라고 하지 않는다. runtime 완료와 이후 실제 세션 관찰을 구분한다. Evidence `F4-ideal-state.md`.
+- [x] F1. 계약·권한·기존 사용자 변경 보존 확인
+  - Read-only reviewer: task1-3 scenario matrix, plan 선택/최초 요청 권한, README 사전 diff 보존, staged diff 없음 확인. Evidence `final-review.json` (F1 PASS).
+- [x] F2. 세션·provider·continuation 독립 코드 검토
+  - Read-only reviewer: false-trigger/child isolation/off restore/legacy continuation/flags와 control 명령 비LLM 동작을 source+task4/6 evidence로 확인. Evidence `final-review.json` (F2 PASS).
+- [x] F3. 실제 host 표면과 resource cleanup 증거 확인
+  - 단일 QA 소유자의 `bun test`/host 결과, 실제 RPC id와 request count, payload byte 측정, teardown receipt를 독립 확인한다. Evidence `final-review.json` (F3 PASS), `task-6-host.json`.
+- [x] F4. 이상 상태·정책 축약 보존과 한계 확인
+  - IS1-6을 변경/증거에 매핑한다. prose 효과·비용 감소·실제 cron/Slack 동작을 미실행 상태에서 PASS라고 하지 않는다. runtime 완료와 이후 실제 세션 관찰을 구분한다. Evidence `final-review.json` (F4 PASS).
 
 ## Commit strategy
 

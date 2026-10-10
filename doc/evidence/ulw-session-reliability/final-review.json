@@ -1,0 +1,66 @@
+{
+  "reviewer": "ReliabilityFinalGate (read-only reviewer)",
+  "verdict": "APPROVE",
+  "confidence": "HIGH",
+  "head": "336308364f33564e3a1c52c3289cb2429ddd4ead",
+  "criteria": [
+    {
+      "id": "F1",
+      "status": "PASS",
+      "evidence": "Reviewed the comparison against 5e17cafefa160463cdc60c6ae0451b91b5c3c988 and the current producer/consumer documents. skills/ulw-execute/SKILL.md:43-61 establishes explicit name -> session-owned active/paused work -> sole selectable plan, one ambiguity/conflict question, no inferred-latest bootstrap, and honest review-receipt recording. skills/ulw-plan/SKILL.md:109-111 and the full-workflow/intent references make the explicit plan request sufficient without granting implementation or delivery permissions. Execute:155-159 and omp-contract.md:13 preserve scoped staging and one Git owner. Task 1-3 scenario matrices hold in the delivered source. README.md changes are seven inserted lines only, with no base content removed. The staged diff and tracked working diff are empty."
+    },
+    {
+      "id": "F2",
+      "status": "PASS",
+      "evidence": "ulw.ts:79-98 distinguishes true, false and undefined, restores the last boolean on the branch, and rearms the compaction reminder only for true. The status/off handlers at 109-126 notify locally without sendUserMessage; off persists false and clears rearmed. The session_stop guard at 174 preserves never-armed owned continuation while blocking explicit-off continuation. Child stripping, eligibility, quote/reference masking, disable flags, cancellation, ownership, stale-state and continuation bounds remain intact. ulw.test.ts contains the new local/read-only, restore/rearm, separate-session/child and off-versus-legacy cases without weakening existing negatives. The installed OMP consumer dispatches extension commands before agent work, transports info notifications explicitly, and clears turn-specific system overrides. tests/ulw-host-check.ts:89-119 accepts local completion only for the matching id's explicit non-agent success, rejects response/prompt-result error frames, subscribes before sending, and checks provider delta only after completion."
+    },
+    {
+      "id": "F3",
+      "status": "PASS",
+      "evidence": "Audited the existing root captures rather than rerunning checks. doc/evidence/ulw-session-reliability/task-6-tests.log records 58 pass, 0 fail and 1600 assertions. task-6-host.json records PASS, 48 provider requests, status-1/off-1 info notifications and zero request deltas, matching the runner's exact command sequence and [policy present, absent, present] assertion at tests/ulw-host-check.ts:187-193. Accounting matches the source: 36 child runs produce 48 requests; loop/execute use the two temporary roots. The runner kills and awaits each child, removes continuation roots, awaits provider shutdown and checks cleanup before printing PASS. The receipt reports 36/36 children exited, provider stopped and 2/2 roots removed. The catalogue-only fixture adds deterministic positive evidence while retaining all eight design-skill exclusion assertions and adding package-skill advertisement assertions."
+    },
+    {
+      "id": "F4",
+      "status": "PASS",
+      "evidence": "All six IS rows map to delivered changes and evidence below. Both compact policies retain authority boundaries, user-change protection, real consumer proof, failure honesty, async pending ownership, cleanup, child isolation, recovery and the ULTRAWORK MODE ENABLED! marker. Runtime model selection and shipped-source equality are preserved; ordinary models keep baseline and exact Astra/Astra-fast ids select Astra. The host payload measurements are baseline 14551/32195 bytes = 45.20% and Astra/Astra-fast 15338/31110 bytes = 49.30%, both below 50%. The plan and task evidence explicitly distinguish prose review and fixed-provider transport proof from live-model obedience, cron/Slack execution and billed-context savings."
+    },
+    {
+      "id": "IS-1",
+      "status": "PASS",
+      "evidence": "Tasks 1 and 5 deliver core-behavior acceptance in execute:169-170,207, plan SKILL:105, full-workflow:160 and both compact policies' Goal and proof sections. The task-1-contract-review.md matrix correctly rejects a visible list with a blank terminal and a CLI fixture-only pass; acceptance requires the delivered consumer, binary observable and tested revision, with bad/good contrast when existing checks miss the defect."
+    },
+    {
+      "id": "IS-2",
+      "status": "PASS",
+      "evidence": "Task 2 aligns execute decomposition/dispatch/staging, the generated plan template, plan full-workflow, loop full-workflow and mass planning. One cohesive file-plus-test unit may use one worker; overlapping writes serialize; independent writes may run together; foreign WIP prohibits broad staging. task-2-ownership-review.md covers all four cases. template-consumer.json records canonical headers, task/final rows and artifact recognition; the actual scaffold consumer still recognizes the preserved sentinel headers."
+    },
+    {
+      "id": "IS-3",
+      "status": "PASS",
+      "evidence": "Task 3 delivers live pending handles, removal of only terminal results, retention of siblings, no empty wait, and the auto-delivery fallback in execute:114-119,182 and omp-contract.md:19-23. Duration observations remain distinct from authorized runnable same-entrypoint audits; external messages remain held. Korean handoffs require result, current wait, grounded end condition and next action. task-3-wait-review.md's six cases agree with those clauses, also retained in both compact policies."
+    },
+    {
+      "id": "IS-4",
+      "status": "PASS",
+      "evidence": "Task 1 establishes the strict plan-selection order, one selection/scope question, explicit new-plan scope and selected path/existing digest recording. No-plan bootstrap is forbidden while a plan is selectable and cannot follow an inferred recommendation. The execute source, planning references and compact policies agree. The task-1-contract-review.md cases for one plan, multiple plans and a genuinely new goal are supported by the final source."
+    },
+    {
+      "id": "IS-5",
+      "status": "PASS",
+      "evidence": "Tasks 4 and 6 implement and exercise registered local status/off commands, persisted off restoration, explicit reactivation, child/session isolation and legacy continuation preservation. task-4-control-tests.log records 17 pass/0 fail; the final suite includes the corresponding tests. The real-host receipt records matching status-1/off-1 local results, info notices and provider deltas of zero, with subsequent on/off/rearm payload assertions in the runner. README.md:19-24 states the narrow session scope, no cancellation or preset unload, and the new-session loading boundary."
+    },
+    {
+      "id": "IS-6",
+      "status": "PASS",
+      "evidence": "Tasks 2, 5 and 6 remove count-based fan-out mandates, retain cohesive ownership and reduce the actual injected doctrine below half its old UTF-8 size in both variants. task-5-policy-map.md and task-5-payload-size.json match the shipped compact sources and task-6-host.json measurements. Existing routing, source-equality, false-trigger and continuation coverage remains in place; final unit and installed-host receipts are green."
+    }
+  ],
+  "blockers": [],
+  "notes": [
+    "This was a read-only gate review. I did not edit files, perform Git writes, delegate work or rerun tests; execution evidence is the root's supplied final-content captures, audited against the reviewed source and installed OMP dispatch paths.",
+    "Prose scenario matrices establish document contracts, not live-model obedience. The fixed responder proves native command routing, notifications, payload injection and continuation mechanics, not product QA, real cron/Slack behavior or browser functionality.",
+    "The measured reduction applies to the injected ULW doctrine's UTF-8 bytes, not the whole conversation, token bill or provider cost.",
+    "Evidence packaging differs from the plan's proposed filenames: task 4 uses task-4-control-tests.log, and task 6's cleanup receipt is embedded in task-6-host.json rather than a separate task-6-cleanup.json. The required results and cleanup fields are present. The output-only captures do not themselves embed per-input/configuration hashes; this verdict is bound to the reviewed HEAD and the root's stated final-content execution.",
+    "Approval covers the reviewed branch implementation. Applying it to the original local installation while preserving that installation's README WIP, and opening the authorized fork PR without merging, remain the integration owner's subsequent delivery steps."
+  ]
+}
