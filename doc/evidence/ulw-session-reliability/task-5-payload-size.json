@@ -1,0 +1,45 @@
+{
+  "task": "task5",
+  "measured_at": "2026-10-10T18:06:03.094Z",
+  "method": "UTF-8 bytes via Buffer.byteLength. Baseline = text between <ultrawork-mode> markers (exactly what ulw.ts injects); Astra = whole raw file (what ulw.ts injects). Old = git HEAD blobs.",
+  "baseline": {
+    "old_bytes": 32195,
+    "new_bytes": 14551,
+    "ratio": 0.452,
+    "ceiling_bytes": 16097,
+    "passes": true,
+    "old_chars": 32051,
+    "new_chars": 14551,
+    "plan_source_budget_chars": 32336,
+    "ratio_vs_source_budget_chars_as_bytes": 0.45,
+    "passes_vs_source_budget": true,
+    "old_source_file_bytes": 32480,
+    "old_source_file_chars": 32336,
+    "new_source_file_bytes": 14835
+  },
+  "astra": {
+    "old_bytes": 31110,
+    "new_bytes": 15338,
+    "ratio": 0.493,
+    "ceiling_bytes": 15555,
+    "passes": true,
+    "old_chars": 30992,
+    "new_chars": 15338,
+    "plan_source_budget_chars": 30992,
+    "ratio_vs_source_budget_chars_as_bytes": 0.4949,
+    "passes_vs_source_budget": true
+  },
+  "runtime_selection_check": {
+    "baseline_for_undefined_and_other_models": true,
+    "astra_for_gpt_6_astra_and_fast": true,
+    "other_gpt6_ids_use_baseline": true,
+    "injected_block_bytes": {
+      "baseline": 14619,
+      "astra": 15406
+    },
+    "ultrawork_mode_open_markers_in_SKILL": 1,
+    "ultrawork_mode_close_markers_in_SKILL": 1,
+    "marker_inside_astra_file": false,
+    "first_line_marker_present": true
+  }
+}

@@ -109,9 +109,9 @@ Must NOT have: OMP 본체 수정, 임의 job/child 상태 API, Git 명령 차단
   - Recommended task executor category: unspecified-high | native role: default task, agent omitted | reason: 좁은 session-state 변경, edge 회귀 중요.
   - Commit: N.
 
-- [ ] 5. 공통 ULW 정책 축약과 workflow 지연 로딩
+- [x] 5. 공통 ULW 정책 축약과 workflow 지연 로딩
   - Closes: IS-1, IS-2, IS-3, IS-4, IS-6.
-  - Files: `skills/ultrawork/SKILL.md`, `skills/ultrawork/references/astra-directive.md`.
+  - Files: `skills/ultrawork/SKILL.md`, `skills/ultrawork/references/astra-directive.md`, `ulw.ts` (compaction 재개 reminder 문구를 새 복원 규칙과 일치).
   - Change: 두 정책에 task1-3의 계약을 짧은 공통 원칙으로 반영한다. source/marker/frontmatter/기존 모델 선택 계약은 보존한다. bare ULW는 간단한 실행·검증·handoff만 요구하고, explicit plan/execute/loop 세부 절차는 해당 workflow에 둔다. bootstrap/handoff 같은 의전은 동일 목표의 후속 턴에서 반복하지 않는다.
   - Change: 권한, 사용자 변경 보호, actual surface proof, 실패를 숨기지 않기, async lifecycle와 cleanup, 위험 기반 review, compaction 이후 durable 상태 복원은 유지한다. 전 notepad 무조건 재독 대신 현재 목표/Now/미완료/필요한 evidence를 읽고, 모순/손실 시 전량 복원한다. clear owner decision이 없는 계획 요청에는 중복 승인을 요구하지 않는다.
   - References: ulw.ts:26-35,114-151; index.ts:80-94; 기존 policy source equality 및 fallback/child isolation tests. 현재 baseline32336chars, Astra30992chars(문자 수; byte 기준선은 실행자가 전량 읽어 별도 측정).

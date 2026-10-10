@@ -164,7 +164,7 @@ export function registerUlw(pi: UlwApi): void {
     }
     const pointers = selected.map(workflow => `<omo-${workflow.name}-pointer>This message mentions ${workflow.name}. If the user is asking to run it, read ${join(skillRoot, workflow.name, "SKILL.md")} and follow its complete workflow. If it is only discussed, quoted or relayed, ignore this pointer. This session's run id is ${ctx.sessionManager.getSessionId()}.</omo-${workflow.name}-pointer>`);
     if (rearmed) {
-      pointers.unshift("<omo-ultrawork-reminder>ultrawork mode is already armed for this session - the complete directive in the current system prompt remains binding; re-read the durable notepad and resume without repeating completed bootstrap or checks.</omo-ultrawork-reminder>");
+      pointers.unshift("<omo-ultrawork-reminder>ultrawork mode is already armed - the directive in the current system prompt remains binding; after compaction read the notepad's goal, Now, open work and the evidence the next action needs (all of it only on contradiction or loss), and do not repeat completed bootstrap or checks.</omo-ultrawork-reminder>");
       rearmed = false;
     }
     return { systemPrompt: blocks, ...(pointers.length ? { message: { customType: "omo-ultrawork:directive", content: pointers.join("\n"), display: false as const } } : {}) };
