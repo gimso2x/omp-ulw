@@ -120,7 +120,7 @@ Must NOT have: OMP 본체 수정, 임의 job/child 상태 API, Git 명령 차단
   - Recommended task executor category: writing | native role: default task, agent omitted | reason: 기존 지침을 보존하면서 반복 절차 제거.
   - Commit: N.
 
-- [ ] 6. 실제 OMP command-only proof와 사용자 문서 마감
+- [x] 6. 실제 OMP command-only proof와 사용자 문서 마감
   - Closes: IS-5, IS-6; 전체 회귀 확인.
   - Files: `tests/ulw-host-check.ts`, `README.md`, `tests/fixtures/skills/ego-browser/SKILL.md` (catalogue-only fixture). 기존 README 사용자 diff를 먼저 읽고 관련 항목만 추가한다. 기준선 호스트 검사에서 사용자 전역 ego-browser 설치를 가정해 실패한 경로를 explicit fixture로 격리하되 unrelated-skill 광고 보존 검사는 유지한다.
   - Change: host runner는 모든 prompt에 agent_end를 기다리지 않는다. 해당 id의 성공 response(success=true, data.agentInvoked=false) 또는 성공 prompt_result(agentInvoked=false, status=completed)만 명령 완료로 처리한다. 같은 id의 error/failure는 실패이며 provider delta0만으로 통과시키지 않는다. 모델 turn은 기존 agent_end/provider request 계약을 유지한다. exact event subscription을 전송 전에 등록하고 현재 bounded timeout을 유지한다.
