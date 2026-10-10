@@ -84,7 +84,7 @@ Must NOT have: OMP 본체 수정, 임의 job/child 상태 API, Git 명령 차단
   - Recommended task executor category: unspecified-high | native role: default task, agent omitted | reason: 생성 template과 소비 workflow 간 계약 정리.
   - Commit: N.
 
-- [ ] 3. 대기 대상·관찰·한국어 진행 보고 계약 정리
+- [x] 3. 대기 대상·관찰·한국어 진행 보고 계약 정리
   - Closes: IS-3.
   - Files: `skills/ulw-execute/SKILL.md`, `skills/ulw-loop/references/omp-contract.md`.
   - Change: live pending set을 실제 handle과 terminal 결과로 관리한다. wait는 자신의 pending 결과가 다음 행동을 막을 때만 사용한다. 메시지/첫 결과는 전체 wave 종료가 아니며, pending set이 비면 wait하지 않는다. 전부 agent auto-delivery 소유인데 wait transport가 지원하지 않는 경우 그 통지를 기다리고 빈 wait를 반복하지 않는다. imaginary filtered-wait/list-jobs API를 만들지 않는다.
