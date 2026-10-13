@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { registerUlw, visibleUlwText } from "./ulw";
+import { registerUlw, visibleUlwText, workerDirective } from "./ulw";
 import type { UlwApi, UlwContext } from "./ulw";
 
 type Handler = (event: never, ctx: UlwContext) => unknown;
@@ -13,15 +13,17 @@ class Host {
   flags = new Map<string, boolean>();
   entries: Array<{ type: string; customType?: string; data?: unknown }> = [];
   warnings: string[] = [];
+  messages: string[] = [];
   notices: Array<{ level: string | undefined }> = [];
   commands = new Map<string, (args: string, ctx: UlwContext) => Promise<void>>();
   submitted: string | undefined;
   context: UlwContext;
-  constructor(cwd = ".") {
+  clock = 0;
+  constructor(cwd = ".", options: { budgetMs?: number } = {}) {
     this.context = {
       cwd, agent: { kind: "main" },
       sessionManager: { getSessionId: () => "test-session", getBranch: () => this.entries },
-      ui: { notify: (message, level) => { this.notices.push({ level }); if (level === "warning") this.warnings.push(message); } },
+      ui: { notify: (message, level) => { this.notices.push({ level }); this.messages.push(message); if (level === "warning") this.warnings.push(message); } },
     };
     const api: UlwApi = {
       registerCommand: (name, options) => { this.commands.set(name, options.handler); },
@@ -31,7 +33,7 @@ class Host {
       appendEntry: (customType, data) => { this.entries.push({ type: "custom", customType, data }); },
       on: (event, handler) => { this.handlers.set(event, handler as Handler); },
     };
-    registerUlw(api);
+    registerUlw(api, { now: () => this.clock, continuationBudgetMs: options.budgetMs });
   }
   emit(event: string, payload: unknown = {}): unknown {
     return this.handlers.get(event)?.(payload as never, this.context);
@@ -86,7 +88,7 @@ describe("Native ULW session behavior", () => {
       expect(new Host().prepare(`/skill:${name} do the task`)).toBeUndefined();
       const child = new Host();
       child.context.agent.kind = "sub";
-      expect(child.prepare(`/${name} the scoped work`)).toBeUndefined();
+      expect(child.prepare(`/${name} the scoped work`)).toEqual({ systemPrompt: ["host", "project rules", workerDirective] });
     }
   });
 
@@ -107,7 +109,7 @@ describe("Native ULW session behavior", () => {
           expect(new Host().prepare(prompt, "extension")).toBeUndefined();
           const child = new Host();
           child.context.agent.kind = "sub";
-          expect(child.prepare(prompt)).toBeUndefined();
+          expect(child.prepare(prompt)).toEqual({ systemPrompt: ["host", "project rules", workerDirective] });
         }
       }
     }
@@ -165,17 +167,21 @@ describe("Native ULW session behavior", () => {
     const child = new Host();
     child.context.agent.kind = "sub";
     for (const prompt of ["ULW: implement only your assigned unit", "ulw-plan", "mass ulw research", "ulw-loop", "ulw-execute"]) {
-      expect(child.prepare(prompt)).toBeUndefined();
-      expect(child.emit("before_agent_start", { prompt, systemPrompt: ["host"] })).toBeUndefined();
+      expect(child.prepare(prompt)).toEqual({ systemPrompt: ["host", "project rules", workerDirective] });
+      expect(child.emit("before_agent_start", { prompt, systemPrompt: ["host"] })).toEqual({ systemPrompt: ["host", workerDirective] });
     }
     await child.commands.get("ulw-loop")!("the assigned unit", child.context);
-    expect(child.prepare(child.submitted!, "extension")).toBeUndefined();
+    expect(child.prepare(child.submitted!, "extension")?.message).toBeUndefined();
     expect(child.entries).toHaveLength(0);
     child.entries = [...cli.entries];
     child.emit("session_start");
     child.emit("session_compact");
-    expect(child.prepare("continue")).toBeUndefined();
-    expect(child.prepare("ULW: scoped unit", "rpc", ["host", "<omo-ulw-policy>inherited root rules</omo-ulw-policy>"])).toEqual({ systemPrompt: ["host"] });
+    expect(child.prepare("continue")?.systemPrompt.some(block => block.startsWith("<omo-ulw-policy>"))).toBe(false);
+    // Inherited policy blocks and stale worker blocks are both replaced by exactly one current worker contract.
+    expect(child.prepare("ULW: scoped unit", "rpc", ["host", "<omo-ulw-policy>inherited root rules</omo-ulw-policy>", "<omo-ulw-worker>stale</omo-ulw-worker>"])).toEqual({ systemPrompt: ["host", workerDirective] });
+    child.flags.set("omo-ultrawork-disabled", true);
+    expect(child.prepare("ULW: scoped unit", "rpc", ["host", "<omo-ulw-policy>inherited</omo-ulw-policy>"])).toEqual({ systemPrompt: ["host"] });
+    child.flags.set("omo-ultrawork-disabled", false);
     expect(child.emit("session_stop", { signal: new AbortController().signal })).toBeUndefined();
   });
 
@@ -264,7 +270,7 @@ describe("Native ULW session behavior", () => {
     await child.commands.get("ulw-status")!("", child.context);
     expect(child.entries).toHaveLength(0);
     expect(child.submitted).toBeUndefined();
-    expect(child.prepare("continue")).toBeUndefined();
+    expect(child.prepare("continue")).toEqual({ systemPrompt: ["host", "project rules", workerDirective] });
   });
 });
 
@@ -369,6 +375,44 @@ describe("evidence-bound ULW continuations", () => {
       await host.commands.get("ulw")!("again", host.context);
       host.prepare(host.submitted!, "extension");
       expect((host.emit("session_stop", { signal }) as Continued).continue).toBe(true);
+    } finally { rmSync(cwd, { recursive: true, force: true }); }
+  });
+
+  test("continuations notify progress, pause on the wall-clock budget until user input, and status reports owned work", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "omo-ulw-test-"));
+    try {
+      const host = new Host(cwd, { budgetMs: 60 * 60 * 1000 });
+      mkdirSync(join(cwd, "doc/plans"), { recursive: true });
+      const plan = join(cwd, "doc/plans/test.md");
+      const boulder = join(cwd, "doc/boulder.json");
+      writeFileSync(plan, "- [x] 1. Done\n- [ ] 2. Open\n- [ ] 3. Open\n");
+      writeFileSync(boulder, JSON.stringify({ works: { probe: { status: "active", session_ids: ["omp:test-session"], active_plan: "doc/plans/test.md" } } }));
+      const signal = new AbortController().signal;
+      await host.commands.get("ulw-status")!("", host.context);
+      expect(host.messages.at(-1)).toContain("execute probe: 미완 체크박스 2/3");
+      expect(host.messages.at(-1)).toContain("continuation 0/8");
+
+      expect((host.emit("session_stop", { signal }) as Continued).continue).toBe(true);
+      expect(host.messages.at(-1)).toBe("ULW 이어가기 1/8 · execute probe: 미완 체크박스 2/3 · 경과 0분");
+      host.clock += 30 * 60 * 1000;
+      writeFileSync(plan, "- [x] 1. Done\n- [x] 2. Open\n- [ ] 3. Open\n");
+      expect((host.emit("session_stop", { signal }) as Continued).continue).toBe(true);
+      expect(host.messages.at(-1)).toBe("ULW 이어가기 2/8 · execute probe: 미완 체크박스 1/3 · 경과 30분");
+      await host.commands.get("ulw-status")!("", host.context);
+      expect(host.messages.at(-1)).toContain("continuation 2/8 (30분 경과)");
+
+      // Past the budget: progress alone no longer continues; the user is told why.
+      host.clock += 31 * 60 * 1000;
+      writeFileSync(plan, "- [x] 1. Done\n- [x] 2. Open\n- [ ] 3. Open (retry)\n");
+      expect(host.emit("session_stop", { signal })).toBeUndefined();
+      expect(host.warnings.at(-1)).toContain("사용자 입력 없이 61분 경과");
+      expect(host.emit("session_stop", { signal })).toBeUndefined();
+      expect(host.warnings).toHaveLength(2);
+
+      // Any non-extension input resets the budget and the counter.
+      host.prepare("continue");
+      expect((host.emit("session_stop", { signal }) as Continued).continue).toBe(true);
+      expect(host.messages.at(-1)).toBe("ULW 이어가기 1/8 · execute probe: 미완 체크박스 1/3 · 경과 0분");
     } finally { rmSync(cwd, { recursive: true, force: true }); }
   });
 });

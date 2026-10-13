@@ -20,7 +20,7 @@ export function renderPreset(model: PresetModel, options: PresetOptions): { name
     .replace(/\*\*.*?\*\*/, "**ASYNCHRONOUS IS THE DEFAULT FORM OF EVERY CALL THAT OFFERS ONE: BASH SESSIONS START WITH THE RUNTIME'S ASYNC OPTION, LONG COMPUTATIONS RUN THROUGH ASYNC BASH, AND CHILD WORK RUNS THROUGH task - NEVER A FOREGROUND CELL THAT SITS ON A `--watch` OR A SPAWNED PROCESS, NEVER A CHILD TASK SPAWNED TO WATCH.**")
     .replace("Each returns a handle at once and delivers its result later as a message", "Each returns a handle; collect its result later through wait"));
   prompt = prompt.replace(TURN_END_IS_WAIT, TURN_END_IS_WAIT
-    .replace("THERE IS NO WAIT TOOL. END YOUR TURN WHEN THE NEXT STEP NEEDS A PENDING RESULT AND A HANDLE WILL WAKE YOU", "USE wait WHEN THE NEXT STEP NEEDS A PENDING RESULT"));
+    .replace("THERE IS NO WAIT TOOL. END YOUR TURN WHEN THE NEXT STEP NEEDS A PENDING RESULT AND A HANDLE WILL WAKE YOU", "USE wait ONLY WHEN THE NEXT STEP IS BLOCKED ON A PENDING RESULT; WHEN A BACKGROUND COMPLETION IS ALREADY QUEUED OR THE RESULT AUTO-DELIVERS, DO NOT CALL wait - END YOUR TURN AND THE NOTIFICATION WAKES YOU"));
   prompt = prompt.replace(MONITOR_CONDITIONS, MONITOR_CONDITIONS
     .replace(/\*\*.*?\*\* \(a direct `monitor` call only in a session without `eval`\)\./, "**EVERY CONDITION YOU WOULD OTHERWISE WAIT ON GETS AN ASYNC BASH WATCH: START A CONDITION-WATCHING COMMAND THROUGH THE RUNTIME'S ASYNC BASH OPTION AND COLLECT ITS HANDLE THROUGH wait.**")
     .replace("The subscription is the whole cost of the wait and its matching line wakes you; a cell that awaits the wait holds the js kernel until the cell limit kills it.", "The async watch owns the wait; collect its matching result through wait when the next step depends on it, rather than holding a foreground js cell on the watching command.")
@@ -29,5 +29,12 @@ export function renderPreset(model: PresetModel, options: PresetOptions): { name
   prompt = prompt.replace(/- \*\*Delegate implementation via `bash`\.\*\* Spawn workers:[^\n]+/g,
     "- **Delegate implementation via `task`.** Spawn independent workers through task, selecting the appropriate supported worker/model through the runtime contract; do not assume a model glob selects a prompting guide. Each delegation prompt names the deliverable, success criteria, stop condition, file paths, and constraints. Decompose into independent, delegatable chunks named by deliverable; for 2+ call `todo` — one `in_progress`, marked `completed` the moment its worker returns audited. Collect worker results through wait.");
   prompt = prompt.replace(/Spawn a separate `omp --print` review invocation/g, "Spawn a separate task review worker");
+  // omp eval exposes no `parallel` global; independent calls batch through Promise.all or the documented workpool().
+  prompt = prompt.replaceAll("`parallel(thunks)`", "`Promise.all` (or the documented `workpool()` for 2+ independent items; there is no `parallel` global)")
+    .replaceAll("with `parallel(thunks)`", "with `Promise.all` (no `parallel` global exists)")
+    .replace(/dispatch them together with the runtime's parallel helper/g, "dispatch them together with `Promise.all` (no `parallel` global exists)");
+  // Frontend proof: measure before imaging. Each inline screenshot past the fifth rewrites the whole prompt cache.
+  prompt = prompt.replace(/make one change, render or screenshot it, look, then make the next;/g, "make one change, measure it first (DOM width/line count/visibility, innerText, URL), screenshot only what must be seen and save it to a file instead of inlining it when the conversation already holds several images, then make the next;")
+    .replace(/gets one change, a render or screenshot, a look, then the next change;/g, "gets one change, a numeric or text check first (DOM measurement, innerText, URL), a screenshot only when something must be seen - saved to a file rather than inlined once several images are already in the conversation - then the next change;");
   return { name: preset.name, prompt };
 }

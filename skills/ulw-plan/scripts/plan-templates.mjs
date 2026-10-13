@@ -162,7 +162,7 @@ Your next move: <fill - the real next step: answer the one open owner decision, 
 ${FINAL_VERIFICATION_ITEMS.map((item) => `- [ ] ${item}`).join("\n")}
 
 ## Commit strategy
-> Name ONE stage/commit owner. Stage only owned paths - never git add -A or an unscoped stage while other workers' or the user's WIP is present; no worktree or commit unless explicitly authorised.
+> Branch: feature/<yyyymm>-${slug} (always; never edit develop/main directly - a worktree when another session shares the checkout). Commit: <Y|N, resolved with the owner at the approval gate>. Push/merge: <Y|N>. Name ONE stage/commit owner. Stage only owned paths - never git add -A or an unscoped stage while other workers' or the user's WIP is present; no commit, push or merge unless explicitly authorised.
 
 ## Success criteria
 > One row per IS row. The plan is complete only when every IS row has a delivering todo and a proving QA scenario; F4 checks the delivered behavior against these rows 1:1, and a shortfall becomes new \`- [ ] N.\` rows, never a note.

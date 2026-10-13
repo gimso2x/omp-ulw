@@ -27,6 +27,17 @@ const stateType = "omo-ultrawork:state";
 const skillRoot = fileURLToPath(new URL("./skills/", import.meta.url));
 const directive = readFileSync(join(skillRoot, "ultrawork/SKILL.md"), "utf8").split("<ultrawork-mode>")[1].split("</ultrawork-mode>")[0];
 const astraDirective = readFileSync(join(skillRoot, "ultrawork/references/astra-directive.md"), "utf8");
+const MAX_CONTINUATIONS = 8;
+const DEFAULT_CONTINUATION_BUDGET_MS = 2 * 60 * 60 * 1000;
+/** Injected into every child agent in place of the parent's ULW policy. Kept short: it rides on every child request. */
+export const workerDirective = `<omo-ulw-worker>
+You are a worker child of an omp session. Work only on the deliverable and paths named in your brief.
+- Change files with \`edit\` (or \`write\` for new files) only. Never rewrite existing files through bash \`sed -i\`, \`perl -i\`, python scripts or heredoc overwrites: those bypass review and leave no record.
+- Never stage, commit, stash, reset, checkout or revert; report your changed paths instead.
+- Call tools by their canonical names: bash, read, edit, write, grep, glob, eval, task, wait, todo, ask. Prefixed or invented names (open_bash, brass_grep, palm_edit, audit_eval, plunge_wait, payment_write) do not exist here.
+- Post \`WORKING: <task> - <phase>\` before any long pass. When your context nears 150k tokens or the run nears 45 minutes, stop: report what is done, what remains and your changed paths so the orchestrator can re-dispatch the remainder.
+- Do not take over the parent goal, re-plan, run the full suite mid-flight, or spawn further children unless your brief assigns orchestration. Reply in the language of your brief.
+</omo-ulw-worker>`;
 
 export function selectUlwDirective(modelId: string | undefined): string {
   if (modelId === undefined) return directive;
@@ -71,7 +82,16 @@ export function visibleUlwText(text: string): string {
     .replace(/\b(?:do\s+not|don['\u2019]t|dont|never)\s+(?:load|use|run|invoke|start|trigger|arm|enable)\b[^.;:!?\n]*?(?=[.;:!?\n]|\s(?:but|then|instead|however)\b|\s[\u2014\u2013-]\s|$)/gi, value => value.replace(/[^\r\n]/g, "\0"));
 }
 
-export function registerUlw(pi: UlwApi): void {
+export interface UlwOptions {
+  /** Clock for continuation budgeting; tests inject a fake. */
+  now?: () => number;
+  /** Wall-clock budget for unattended continuations before pausing for user input. */
+  continuationBudgetMs?: number;
+}
+
+export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
+  const now = options.now ?? Date.now;
+  const continuationBudgetMs = options.continuationBudgetMs ?? DEFAULT_CONTINUATION_BUDGET_MS;
   pi.registerFlag("omo-ultrawork-disabled", { description: "Disable automatic Native ULW arming", type: "boolean", default: false });
   pi.registerFlag("omo-ulw-workflows-disabled", { description: "Disable OMO workflow skill pointers", type: "boolean", default: false });
   pi.registerFlag("omo-ulw-continuation-disabled", { description: "Disable ULW loop/execute continuation", type: "boolean", default: false });
@@ -82,6 +102,7 @@ export function registerUlw(pi: UlwApi): void {
   let commandPending = false;
   let continuationFingerprint: string | undefined;
   let consecutiveContinuations = 0;
+  let continuationStartedAt: number | undefined;
 
   const restore = (_event: unknown, ctx: UlwContext) => {
     armed = undefined;
@@ -90,6 +111,7 @@ export function registerUlw(pi: UlwApi): void {
     commandPending = false;
     continuationFingerprint = undefined;
     consecutiveContinuations = 0;
+    continuationStartedAt = undefined;
     for (const entry of ctx.sessionManager.getBranch()) {
       if (entry.type === "custom" && entry.customType === stateType && typeof entry.data === "boolean") armed = entry.data;
     }
@@ -98,7 +120,7 @@ export function registerUlw(pi: UlwApi): void {
   pi.on("session_compact", () => { rearmed = armed === true; });
   pi.on("input", event => {
     inputSource = event.source;
-    if (event.source !== "extension") { continuationFingerprint = undefined; consecutiveContinuations = 0; }
+    if (event.source !== "extension") { continuationFingerprint = undefined; consecutiveContinuations = 0; continuationStartedAt = undefined; }
   });
   for (const name of ["ulw", ...workflows.map(workflow => workflow.name)]) {
     pi.registerCommand(name, {
@@ -112,11 +134,19 @@ export function registerUlw(pi: UlwApi): void {
     });
   }
   pi.registerCommand("ulw-status", {
-    description: "Show this session's ULW arming and disable flags locally",
+    description: "Show this session's ULW arming, owned work, continuation count and disable flags locally",
     handler: async (_args, ctx) => {
       const state = armed === true ? "armed" : armed === false ? "explicit-off" : "never-armed";
       const flags = ["omo-ultrawork-disabled", "omo-ulw-workflows-disabled", "omo-ulw-continuation-disabled"].map(name => `${name}=${pi.getFlag(name) === true ? "on" : "off"}`);
-      ctx.ui.notify(`ULW ${state}; ${flags.join(", ")}`, "info");
+      let work = "owned work: none";
+      try {
+        const owned = readOwnedWork(ctx);
+        if (owned) work = `owned work: ${owned.summary}`;
+      } catch (error) {
+        work = `owned work: unreadable (${error instanceof Error ? error.message : String(error)})`;
+      }
+      const elapsed = continuationStartedAt === undefined ? "" : ` (${Math.round((now() - continuationStartedAt) / 60_000)}분 경과)`;
+      ctx.ui.notify(`ULW ${state}; ${work}; continuation ${consecutiveContinuations}/${MAX_CONTINUATIONS}${elapsed}; ${flags.join(", ")}`, "info");
     },
   });
   pi.registerCommand("ulw-off", {
@@ -134,8 +164,10 @@ export function registerUlw(pi: UlwApi): void {
     if (ctx.agent.kind !== "main") {
       inputSource = undefined;
       commandPending = false;
-      const blocks = event.systemPrompt.filter(block => !block.startsWith("<omo-ulw-policy>"));
-      return blocks.length === event.systemPrompt.length ? undefined : { systemPrompt: blocks };
+      // Children never carry the parent's ULW policy; they get a short worker contract instead (2026-10-13: workers used sed -i 67x and invented tool names 30x+).
+      const blocks = event.systemPrompt.filter(block => !block.startsWith("<omo-ulw-policy>") && !block.startsWith("<omo-ulw-worker>"));
+      if (!pi.getFlag("omo-ultrawork-disabled")) blocks.push(workerDirective);
+      return { systemPrompt: blocks };
     }
     let text = event.prompt;
     // Native skill messages contain reference prose; only their trailing user arguments can activate workflows.
@@ -171,48 +203,70 @@ export function registerUlw(pi: UlwApi): void {
   });
 
   pi.on("session_stop", (event, ctx) => {
-    if (armed === false || event.signal.aborted || ctx.agent.kind !== "main" || pi.getFlag("omo-ulw-continuation-disabled") || consecutiveContinuations >= 8) return;
-    const id = ctx.sessionManager.getSessionId();
-    const loopPath = join(ctx.cwd, "doc/ulw-loop", id, "goals.json");
-    const boulderPath = join(ctx.cwd, "doc/boulder.json");
-    let fingerprint: string | undefined;
-    let reason: string | undefined;
+    if (armed === false || event.signal.aborted || ctx.agent.kind !== "main" || pi.getFlag("omo-ulw-continuation-disabled") || consecutiveContinuations >= MAX_CONTINUATIONS) return;
+    let owned: OwnedWork | undefined;
     try {
-      if (existsSync(boulderPath)) {
-        const raw = readFileSync(boulderPath, "utf8");
-        const boulder: unknown = JSON.parse(raw);
-        if (typeof boulder === "object" && boulder !== null && "works" in boulder && typeof boulder.works === "object" && boulder.works !== null) {
-          for (const work of Object.values(boulder.works)) {
-            if (typeof work !== "object" || work === null || !("status" in work) || work.status !== "active" || !("session_ids" in work) || !Array.isArray(work.session_ids) || !work.session_ids.includes("omp:" + id) || !("active_plan" in work) || typeof work.active_plan !== "string") continue;
-            const planPath = join(ctx.cwd, work.active_plan);
-            if (!existsSync(planPath)) continue;
-            const plan = readFileSync(planPath, "utf8");
-            const tasks = [...visibleUlwText(plan).matchAll(/^- \[([ xX~])\] /gm)];
-            if (tasks.length === 0) continue;
-            const unfinished = tasks.some(task => task[1].toLowerCase() !== "x");
-            fingerprint = raw + plan;
-            reason = `Resume ulw-execute from ${boulderPath} and ${planPath}; ${unfinished ? "integrate pending child results, complete the next unfinished task with captured evidence, and update Boulder/ledger" : "all top-level tasks are checked; verify the Final Verification Wave and its evidence, then mark the Boulder work complete and finalize its ledger"}. Respect cancellation, approvals and blocked/paused state.`;
-            break;
-          }
-        }
-      }
-      if (fingerprint === undefined && existsSync(loopPath)) {
-        const raw = readFileSync(loopPath, "utf8");
-        const loop: unknown = JSON.parse(raw);
-        const goals: unknown[] = typeof loop === "object" && loop !== null && "goals" in loop && Array.isArray(loop.goals) ? loop.goals : [];
-        if (typeof loop === "object" && loop !== null && "status" in loop && loop.status === "active" && goals.some(goal => typeof goal === "object" && goal !== null && "status" in goal && (goal.status === "pending" || goal.status === "in_progress"))) {
-          fingerprint = raw;
-          reason = `Resume ulw-loop from ${loopPath} and its brief/ledger; execute the next eligible goal, capture real-surface criterion evidence, and checkpoint only after all gates pass. Do not re-plan completed work. Respect cancellation, approvals and blocked/paused state.`;
-        }
-      }
+      owned = readOwnedWork(ctx);
     } catch (error) {
       ctx.ui.notify(`ULW continuation: state could not be read: ${error instanceof Error ? error.message : String(error)}`, "warning");
       return;
     }
     // Native continuation stops on stale state, not an unbounded finish-claim loop.
-    if (fingerprint === undefined || fingerprint === continuationFingerprint || reason === undefined) return;
-    continuationFingerprint = fingerprint;
+    if (owned === undefined || owned.fingerprint === continuationFingerprint) return;
+    const nowMs = now();
+    if (consecutiveContinuations === 0) continuationStartedAt = nowMs;
+    const elapsedMinutes = Math.round((nowMs - (continuationStartedAt ?? nowMs)) / 60_000);
+    if (nowMs - (continuationStartedAt ?? nowMs) > continuationBudgetMs) {
+      // A wall-clock budget bounds unattended runs; any user input resets it (2026-10-13: one execute ran 14h unattended).
+      ctx.ui.notify(`ULW 이어가기 중단: 사용자 입력 없이 ${elapsedMinutes}분 경과 (${owned.summary}). 계속하려면 메시지를 보내거나 /ulw-execute를 다시 입력하세요.`, "warning");
+      return;
+    }
+    continuationFingerprint = owned.fingerprint;
     consecutiveContinuations++;
-    return { continue: true, additionalContext: reason };
+    ctx.ui.notify(`ULW 이어가기 ${consecutiveContinuations}/${MAX_CONTINUATIONS} · ${owned.summary} · 경과 ${elapsedMinutes}분`, "info");
+    return { continue: true, additionalContext: owned.reason };
   });
+}
+
+interface OwnedWork { fingerprint: string; reason: string; summary: string }
+
+/** Active execute (Boulder) or loop state owned by this session; throws on unreadable state. */
+function readOwnedWork(ctx: UlwContext): OwnedWork | undefined {
+  const id = ctx.sessionManager.getSessionId();
+  const loopPath = join(ctx.cwd, "doc/ulw-loop", id, "goals.json");
+  const boulderPath = join(ctx.cwd, "doc/boulder.json");
+  if (existsSync(boulderPath)) {
+    const raw = readFileSync(boulderPath, "utf8");
+    const boulder: unknown = JSON.parse(raw);
+    if (typeof boulder === "object" && boulder !== null && "works" in boulder && typeof boulder.works === "object" && boulder.works !== null) {
+      for (const [name, work] of Object.entries(boulder.works)) {
+        if (typeof work !== "object" || work === null || !("status" in work) || work.status !== "active" || !("session_ids" in work) || !Array.isArray(work.session_ids) || !work.session_ids.includes("omp:" + id) || !("active_plan" in work) || typeof work.active_plan !== "string") continue;
+        const planPath = join(ctx.cwd, work.active_plan);
+        if (!existsSync(planPath)) continue;
+        const plan = readFileSync(planPath, "utf8");
+        const tasks = [...visibleUlwText(plan).matchAll(/^- \[([ xX~])\] /gm)];
+        if (tasks.length === 0) continue;
+        const open = tasks.filter(task => task[1].toLowerCase() !== "x").length;
+        return {
+          fingerprint: raw + plan,
+          summary: `execute ${name}: 미완 체크박스 ${open}/${tasks.length}`,
+          reason: `Resume ulw-execute from ${boulderPath} and ${planPath}; ${open > 0 ? "integrate pending child results, complete the next unfinished task with captured evidence, and update Boulder/ledger" : "all top-level tasks are checked; verify the Final Verification Wave and its evidence, then mark the Boulder work complete and finalize its ledger"}. Respect cancellation, approvals and blocked/paused state.`,
+        };
+      }
+    }
+  }
+  if (existsSync(loopPath)) {
+    const raw = readFileSync(loopPath, "utf8");
+    const loop: unknown = JSON.parse(raw);
+    const goals: unknown[] = typeof loop === "object" && loop !== null && "goals" in loop && Array.isArray(loop.goals) ? loop.goals : [];
+    const open = goals.filter(goal => typeof goal === "object" && goal !== null && "status" in goal && (goal.status === "pending" || goal.status === "in_progress")).length;
+    if (typeof loop === "object" && loop !== null && "status" in loop && loop.status === "active" && open > 0) {
+      return {
+        fingerprint: raw,
+        summary: `loop: 남은 goal ${open}/${goals.length}`,
+        reason: `Resume ulw-loop from ${loopPath} and its brief/ledger; execute the next eligible goal, capture real-surface criterion evidence, and checkpoint only after all gates pass. Do not re-plan completed work. Respect cancellation, approvals and blocked/paused state.`,
+      };
+    }
+  }
+  return undefined;
 }
