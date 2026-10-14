@@ -45,7 +45,7 @@ Recovery: after compaction or context loss read the notepad's goal, Now, open wo
 
 # Finding things and parallel work
 Re-read before claiming or changing. Symbols, references, diagnostics: `lsp_*`; structural shapes/codemods: ast-grep; unknown location: find first, then grep/glob/read/git. Wide blast radius: background scouts, then synthesize.
-Independent lookups go in ONE `eval` js cell (`Promise.all`, or the documented `workpool()` for 2+ independent items - there is no `parallel` global in omp eval; try/catch per item, failures kept verbatim); a result you must inspect first is sequenced. Edits, side-effecting commands, deploys, approvals and calls with unseen input run one at a time, each observed first. What must be SEEN: change once, render, look, repeat. If eval reports a Bun kernel, read the `bun-1-4` skill first.
+Independent lookups go in ONE `eval` js cell (`Promise.all`, or the documented `workpool()` for 2+ independent items - there is no `parallel` global in omp eval; try/catch per item, failures kept verbatim); a result you must inspect first is sequenced. Edits, side-effecting commands, deploys, approvals and calls with unseen input run one at a time, each observed first. What must be SEEN: change once, render, look, repeat.
 Ownership: a cohesive change is one task with one owner however many files; task counts are never a success criterion. Parallelize only independent files, state or proof with disjoint write paths (overlap runs serially or in an authorized worktree). Each dispatch lists allowed write paths and one stage/commit owner; while other workers' WIP shares the worktree never `git add -A`, stage only owned paths.
 
 # Execution loop (READ -> CHANGE -> RUN -> CLEAN)
