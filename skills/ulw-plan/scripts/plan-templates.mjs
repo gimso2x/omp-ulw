@@ -158,7 +158,7 @@ Your next move: <fill - the real next step: answer the one open owner decision, 
   Commit: <Y only if explicitly authorised; otherwise N> | <type>(<scope>): <summary>
 
 ## Final verification wave
-> Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
+> Runs in parallel after ALL todos. ALL must APPROVE. Surface results and stop when the approved acceptance criteria pass; only a remaining user-owned decision requires approval.
 ${FINAL_VERIFICATION_ITEMS.map((item) => `- [ ] ${item}`).join("\n")}
 
 ## Commit strategy

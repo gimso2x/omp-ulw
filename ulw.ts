@@ -23,6 +23,7 @@ export interface UlwApi {
   on(event: "session_stop", handler: (event: { signal: AbortSignal }, ctx: UlwContext) => { continue: true; additionalContext: string } | undefined): void;
 }
 
+// Keep persisted session keys and shipped CLI flags stable; emitted prompts use OMP names.
 const stateType = "omo-ultrawork:state";
 const skillRoot = fileURLToPath(new URL("./skills/", import.meta.url));
 const directive = readFileSync(join(skillRoot, "ultrawork/SKILL.md"), "utf8").split("<ultrawork-mode>")[1].split("</ultrawork-mode>")[0];
@@ -30,14 +31,14 @@ const astraDirective = readFileSync(join(skillRoot, "ultrawork/references/astra-
 const MAX_CONTINUATIONS = 8;
 const DEFAULT_CONTINUATION_BUDGET_MS = 2 * 60 * 60 * 1000;
 /** Injected into every child agent in place of the parent's ULW policy. Kept short: it rides on every child request. */
-export const workerDirective = `<omo-ulw-worker>
+export const workerDirective = `<omp-ulw-worker>
 You are a worker child of an omp session. Work only on the deliverable and paths named in your brief.
 - Change files with \`edit\` (or \`write\` for new files) only. Never rewrite existing files through bash \`sed -i\`, \`perl -i\`, python scripts or heredoc overwrites: those bypass review and leave no record.
 - Never stage, commit, stash, reset, checkout or revert; report your changed paths instead.
 - Call tools by their canonical names: bash, read, edit, write, grep, glob, eval, task, wait, todo, ask. Prefixed or invented names (open_bash, brass_grep, palm_edit, audit_eval, plunge_wait, payment_write) do not exist here.
 - Post \`WORKING: <task> - <phase>\` before any long pass. When your context nears 200k tokens or the run nears 45 minutes, stop: report what is done, what remains and your changed paths so the orchestrator can re-dispatch the remainder.
 - Do not take over the parent goal, re-plan, run the full suite mid-flight, or spawn further children unless your brief assigns orchestration. Reply in the language of your brief.
-</omo-ulw-worker>`;
+</omp-ulw-worker>`;
 
 export function selectUlwDirective(modelId: string | undefined): string {
   if (modelId === undefined) return directive;
@@ -63,7 +64,7 @@ const workflows = [
 /** Native ULW ignores quoted code and already-expanded directive/pointer blocks. */
 export function visibleUlwText(text: string): string {
   if (/^\s*(?:\[(?:[A-Z][A-Z0-9_-]{2,}|[\w.-]+ -> [\w.-]+)\]|[A-Z][\w.-]{0,30} \([^()\s]{1,40}\)(?:, | to )[\w.-]{1,40}:)/.test(text)) return text.replace(/[^\r\n]/g, "\0");
-  text = text.replace(/<(omo-[a-z0-9-]+-pointer|ultrawork-mode|omo-ultrawork-reminder)>[\s\S]*?<\/\1>/gi, value => value.replace(/[^\r\n]/g, "\0"));
+  text = text.replace(/<(om[op]-[a-z0-9-]+-pointer|ultrawork-mode|om[op]-(?:ulw|ultrawork)-reminder)>[\s\S]*?<\/\1>/gi, value => value.replace(/[^\r\n]/g, "\0"));
   const fences = /^ {0,3}(`{3,}|~{3,})[^\n]*(?:\n|$)/gm;
   for (;;) {
     const opening = fences.exec(text);
@@ -93,7 +94,7 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
   const now = options.now ?? Date.now;
   const continuationBudgetMs = options.continuationBudgetMs ?? DEFAULT_CONTINUATION_BUDGET_MS;
   pi.registerFlag("omo-ultrawork-disabled", { description: "Disable automatic Native ULW arming", type: "boolean", default: false });
-  pi.registerFlag("omo-ulw-workflows-disabled", { description: "Disable OMO workflow skill pointers", type: "boolean", default: false });
+  pi.registerFlag("omo-ulw-workflows-disabled", { description: "Disable OMP workflow skill pointers", type: "boolean", default: false });
   pi.registerFlag("omo-ulw-continuation-disabled", { description: "Disable ULW loop/execute continuation", type: "boolean", default: false });
   // true = armed, false = explicitly off, undefined = never armed (legacy owned continuation still applies).
   let armed: boolean | undefined;
@@ -165,7 +166,7 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
       inputSource = undefined;
       commandPending = false;
       // Children never carry the parent's ULW policy; they get a short worker contract instead (2026-10-13: workers used sed -i 67x and invented tool names 30x+).
-      const blocks = event.systemPrompt.filter(block => !block.startsWith("<omo-ulw-policy>") && !block.startsWith("<omo-ulw-worker>"));
+      const blocks = event.systemPrompt.filter(block => !/^<om[op]-ulw-(?:policy|worker)>/.test(block));
       if (!pi.getFlag("omo-ultrawork-disabled")) blocks.push(workerDirective);
       return { systemPrompt: blocks };
     }
@@ -189,14 +190,14 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
       if (!armed) { armed = true; pi.appendEntry(stateType, true); }
     }
     if ((!armed || pi.getFlag("omo-ultrawork-disabled")) && selected.length === 0) return;
-    const blocks = event.systemPrompt.filter(block => !block.startsWith("<omo-ulw-policy>"));
+    const blocks = event.systemPrompt.filter(block => !/^<om[op]-ulw-policy>/.test(block));
     if (armed && !pi.getFlag("omo-ultrawork-disabled")) {
       // A current system block survives compaction and provider fallback without replaying a 31KB user message.
-      blocks.push(`<omo-ulw-policy>\n<ultrawork-mode>${selectUlwDirective(ctx.model?.id)}</ultrawork-mode>\n</omo-ulw-policy>`);
+      blocks.push(`<omp-ulw-policy>\n<ultrawork-mode>${selectUlwDirective(ctx.model?.id)}</ultrawork-mode>\n</omp-ulw-policy>`);
     }
-    const pointers = selected.map(workflow => `<omo-${workflow.name}-pointer>This message mentions ${workflow.name}. If the user is asking to run it, read ${join(skillRoot, workflow.name, "SKILL.md")} and follow its complete workflow. If it is only discussed, quoted or relayed, ignore this pointer. This session's run id is ${ctx.sessionManager.getSessionId()}.</omo-${workflow.name}-pointer>`);
+    const pointers = selected.map(workflow => `<omp-${workflow.name}-pointer>This message mentions ${workflow.name}. If the user is asking to run it, read ${join(skillRoot, workflow.name, "SKILL.md")} and follow its complete workflow. If it is only discussed, quoted or relayed, ignore this pointer. This session's run id is ${ctx.sessionManager.getSessionId()}.</omp-${workflow.name}-pointer>`);
     if (rearmed) {
-      pointers.unshift("<omo-ultrawork-reminder>ultrawork mode is already armed - the directive in the current system prompt remains binding; after compaction read the notepad's goal, Now, open work and the evidence the next action needs (all of it only on contradiction or loss), and do not repeat completed bootstrap or checks.</omo-ultrawork-reminder>");
+      pointers.unshift("<omp-ultrawork-reminder>ultrawork mode is already armed - the directive in the current system prompt remains binding; after compaction read the notepad's goal, Now, open work and the evidence the next action needs (all of it only on contradiction or loss), and do not repeat completed bootstrap or checks.</omp-ultrawork-reminder>");
       rearmed = false;
     }
     return { systemPrompt: blocks, ...(pointers.length ? { message: { customType: "omo-ultrawork:directive", content: pointers.join("\n"), display: false as const } } : {}) };
@@ -246,11 +247,13 @@ function readOwnedWork(ctx: UlwContext): OwnedWork | undefined {
         const plan = readFileSync(planPath, "utf8");
         const tasks = [...visibleUlwText(plan).matchAll(/^- \[([ xX~])\] /gm)];
         if (tasks.length === 0) continue;
-        const open = tasks.filter(task => task[1].toLowerCase() !== "x").length;
+        const open = tasks.filter(task => task[1] === " ").length;
+        const blocked = tasks.some(task => task[1] === "~");
+        if (open === 0 && blocked) continue;
         return {
           fingerprint: raw + plan,
           summary: `execute ${name}: 미완 체크박스 ${open}/${tasks.length}`,
-          reason: `Resume ulw-execute from ${boulderPath} and ${planPath}; ${open > 0 ? "integrate pending child results, complete the next unfinished task with captured evidence, and update Boulder/ledger" : "all top-level tasks are checked; verify the Final Verification Wave and its evidence, then mark the Boulder work complete and finalize its ledger"}. Respect cancellation, approvals and blocked/paused state.`,
+          reason: `Resume ulw-execute from ${boulderPath} and ${planPath}; ${open > 0 ? "integrate pending child results and execute the next dependency-ready pending task, including pending Final Verification Wave rows; capture evidence and update Boulder/ledger" : "all top-level tasks are checked; verify the Final Verification Wave and its evidence, then mark the Boulder work complete and finalize its ledger"}.${blocked ? " Treat [~] rows and transitive dependents as terminal non-success; never reopen or re-queue them. Final verification checks delivered work and reports known gaps without treating those gaps alone as new failures. When pending work ends, report every unmet gap, mark Boulder blocked and stop without claiming success." : ""} Respect cancellation, approvals and blocked/paused state.`,
         };
       }
     }
