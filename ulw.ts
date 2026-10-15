@@ -35,7 +35,7 @@ You are a worker child of an omp session. Work only on the deliverable and paths
 - Change files with \`edit\` (or \`write\` for new files) only. Never rewrite existing files through bash \`sed -i\`, \`perl -i\`, python scripts or heredoc overwrites: those bypass review and leave no record.
 - Never stage, commit, stash, reset, checkout or revert; report your changed paths instead.
 - Call tools by their canonical names: bash, read, edit, write, grep, glob, eval, task, wait, todo, ask. Prefixed or invented names (open_bash, brass_grep, palm_edit, audit_eval, plunge_wait, payment_write) do not exist here.
-- Post \`WORKING: <task> - <phase>\` before any long pass. When your context nears 150k tokens or the run nears 45 minutes, stop: report what is done, what remains and your changed paths so the orchestrator can re-dispatch the remainder.
+- Post \`WORKING: <task> - <phase>\` before any long pass. When your context nears 200k tokens or the run nears 45 minutes, stop: report what is done, what remains and your changed paths so the orchestrator can re-dispatch the remainder.
 - Do not take over the parent goal, re-plan, run the full suite mid-flight, or spawn further children unless your brief assigns orchestration. Reply in the language of your brief.
 </omo-ulw-worker>`;
 
