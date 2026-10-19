@@ -12,6 +12,13 @@ let spawnedChildren = 0;
 let exitedChildren = 0;
 const tempRoots: string[] = [];
 const policyBytes: Record<string, number> = {};
+// The host check exercises ULW, not the user's memory backend. A real agent dir with mnemopi makes the first
+// turn wait on the shared embedding server before any provider request; when that server is hung or being
+// replaced (2026-10-19 OCI: 190 s recall stall), every scenario misses its deadline for reasons outside ULW.
+const hostRoot = mkdtempSync(join(tmpdir(), "omo-ulw-host-config-"));
+tempRoots.push(hostRoot);
+const hostOverlay = join(hostRoot, "overlay.yml");
+writeFileSync(hostOverlay, "memory:\n  backend: \"off\"\n");
 interface LocalCommandTrace { id: string; command: string; notifications: Array<{ message: string; notifyType: string }>; providerRequestDelta: number }
 interface Frame {
   type?: string; id?: string; success?: boolean; status?: string; agentInvoked?: boolean; willContinue?: boolean; method?: string; notifyType?: string; kind?: string; path?: string;
@@ -57,7 +64,7 @@ async function run(prompts: string[], flags: string[] = [], continuation?: "loop
   const child = Bun.spawn([
     "omp", "--mode", "rpc", ...(prompts.some(prompt => /^\/ulw-(status|off)$/.test(prompt)) ? [] : ["--no-ui"]), "--no-extensions", "-e", resolve("."),
     "-e", resolve("tests/fixtures/ulw-provider.ts"), "--model", provider ? `${provider}/deepseek-v4-flash-omo-local-probe` : `omo-ulw-probe/${model}`,
-    "--cwd", cwd, ...(loadSkills ? ["--tools", "read"] : ["--no-tools", "--no-skills"]), "--no-rules", "--no-title", "--no-session", "--no-lsp", ...flags,
+    "--cwd", cwd, "--config", hostOverlay, ...(loadSkills ? ["--tools", "read"] : ["--no-tools", "--no-skills"]), "--no-rules", "--no-title", "--no-session", "--no-lsp", ...flags,
   ], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, OMO_ULW_PROBE_BASE_URL: `http://127.0.0.1:${server.port}/v1`, OMO_ULW_PROBE_CONTINUATION: continuation ?? "", OMO_ULW_PROBE_PROVIDER: provider ?? "", OMO_ULW_PROBE_MODEL: model } });
   spawnedChildren++;
   const stderr = new Response(child.stderr).text();
@@ -255,7 +262,7 @@ try {
     assert(prompt.includes(`<omp-model-preset>\n${profile.prompt}\n</omp-model-preset>`), "actual provider request must contain the provider-specific shipped profile");
   }
   result = { status: "PASS", requests: requests.length, scenarios: ["Astra directive", "Astra-fast directive", "eight design skills excluded", "package skills advertised in the catalogue", "eleven new skill commands", "native skill body suppression", "native skill explicit ULW arguments", "native skill explicit planning arguments", "slash activation", "session follow-up", "quoted keyword suppression", "path reference suppression", "negated invocation suppression", "blockquote suppression", "relay suppression", "URL suppression", "mass pointer without base arming", "contrast clause activation", "disable flag", "specialised command pointer", "loop continuation", "execute final-gate continuation", "blocked-only execute stays closed", "mixed execute finishes pending and final rows", "Haiku 5.5 profile", "official DeepSeek profile", "third-party DeepSeek profile", "local /ulw-status and /ulw-off command-only session sequence"], localCommands: controls, policyBytes };
-} finally { await server.stop(true); }
+} finally { await server.stop(true); rmSync(hostRoot, { recursive: true, force: true }); }
 const providerStopped = await fetch(`http://127.0.0.1:${server.port}/`).then(() => false, () => true);
 const tempRootsRemoved = tempRoots.filter(path => !existsSync(path)).length;
 assert.equal(exitedChildren, spawnedChildren, "every owned OMP child must have exited");
