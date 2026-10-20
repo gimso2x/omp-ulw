@@ -26,9 +26,9 @@ For broader brand/style coverage, load the external design research through the 
 
 Use the external design research through the exposed browser tools when the request explicitly mentions Open Design, Claude Design alternatives, design-system libraries, or a brand/style that is not covered by this skill's curated reference set. Treat Open Design as the expanded reference library; keep this skill responsible for routing discipline, design-system gating, and frontend execution quality.
 
-## Phase 0 — Design System Gate (MANDATORY, runs before routing)
+## Phase 0 — Design System Gate (conditional)
 
-Before touching any UI code, before routing to any reference, before even thinking about aesthetics — run this gate.
+Run this gate for greenfield work, an explicit design-system/high-craft request, or a concrete visual reference. For ordinary changes in an existing UI, use the existing rendered surface and component patterns as the taste and implementation contract; retain visual QA and accessibility/behavior checks.
 
 ### Check: Does the project have a `DESIGN.md`?
 
@@ -38,11 +38,11 @@ Before touching any UI code, before routing to any reference, before even thinki
 
 1. Read `design-system-architecture.md` — it defines the exact structure.
 2. Identify the branch: greenfield setup, existing UI with implicit patterns/components, or existing UI with no reusable component layer.
-3. **Greenfield setup:** if the user gave no concrete visual reference, use `_INDEX.md` to shortlist 2-3 plausible Layer B references, then read exactly one Layer A style skill and one Layer B brand/design-system reference in full — every line, no partial reads; use external design research through the exposed browser tools only when the curated set has no fit. Open `DESIGN.md` with a `## 0. Research Log` recording each research lane's deliverable (embedded-reference shortlist + pick, lazyweb screens viewed, generated image drafts — see the SKILL.md workflow); a lane with no line did not run. Treat those references as source material, not mood labels: extract tokens, layout grammar, component anatomy, interaction states, motion, and taste decisions into `DESIGN.md`, then recombine them into project-specific primitives. Customize for the user's product and content, but do not freestyle past the selected references; never copy logos, trademarked assets, or brand-specific copy.
+3. **Greenfield setup for an explicit design-system/high-craft request:** if the user gave no concrete visual reference, use `_INDEX.md` to shortlist 2-3 plausible Layer B references, then read exactly one Layer A style skill and one Layer B brand/design-system reference in full — every line, no partial reads; use external design research through the exposed browser tools only when the curated set has no fit. Open `DESIGN.md` with a `## 0. Research Log` recording each research lane's deliverable (embedded-reference shortlist + pick, lazyweb screens viewed, generated image drafts — see the SKILL.md workflow); a lane with no line did not run. Treat those references as source material, not mood labels: extract tokens, layout grammar, component anatomy, interaction states, motion, and taste decisions into `DESIGN.md`, then recombine them into project-specific primitives. Ordinary greenfield UI may use the smallest useful direction without this research program. Customize for the user's product and content, but do not freestyle past the selected references; never copy logos, trademarked assets, or brand-specific copy.
    - **Commit a distinctive direction BEFORE extracting tokens.** In 1-2 sentences, name the atmosphere, the signature material, the color story, and the one moment a visitor will remember. For an expressive brief, sketch 2-3 genuinely different directions and pick the boldest one you can defend with the loaded reference; do not average them, because the average IS the generic default this skill exists to beat. A locked, never-revisited one-shot decision is how a page ends up flat.
    - **The reference's distinctive material MUST survive extraction (expressive briefs).** The common failure is loading a rich reference and then distilling it into a generic dark-SaaS token set. Your `DESIGN.md` must carry the *non-default* decisions forward and name which reference each came from: the actual elevation recipe (the specific layers that make a surface read as glass/glossy, not a single blur), a multi-stop perceptual color ramp (not one brand hex reused at varied opacity), the explicit display/body/mono type choices, and one signature interaction. Self-check before writing code: if your `DESIGN.md` could describe any generic dark SaaS, you flattened the reference — go back and put the specific material in.
-4. **Existing UI with implicit patterns/components:** extract the colors, typography, spacing, primitives, states, and motion already in use. Write `DESIGN.md` to codify what exists before changing UI code.
-5. **Existing UI with no reusable component layer:** STOP and ask whether to preserve the current style with copy-nearby edits or extract a `DESIGN.md` plus reusable components first. Do not silently choose the cheaper path or the larger refactor.
+4. **Existing UI with implicit patterns/components:** for explicit design-system/high-craft work, extract the colors, typography, spacing, primitives, states, and motion already in use and codify them in `DESIGN.md`. For ordinary UI work, use those existing patterns directly and update documentation only when a genuinely shared decision is introduced.
+5. **Existing UI with no reusable component layer:** for explicit design-system/high-craft work, ask whether to preserve the current style with copy-nearby edits or extract a `DESIGN.md` plus reusable components first. For ordinary UI work, preserve the current look with copy-nearby edits and retain rendered visual QA.
 6. Finish the triage at the Primitive Showcase Gate below.
 
 #### If YES design system exists → READ IT, FOLLOW IT
@@ -52,21 +52,26 @@ Before touching any UI code, before routing to any reference, before even thinki
 3. If you need a token that doesn't exist, **add it to `DESIGN.md` first**, then use it.
 4. Never introduce raw hex codes, arbitrary px values, or ad-hoc component patterns that bypass the system.
 
-**The Design System Gate is non-negotiable. No design system = no UI work. Period.**
+**For the scoped requests above, the Design System Gate is non-negotiable.** It is not a prerequisite for every ordinary UI edit.
 
-### Primitive Showcase Gate (MANDATORY)
+### Primitive Showcase Gate (conditional)
 
-**Do not proceed to product screens until `DESIGN.md` exists, Section 5 names the reusable primitives and their states, and each primitive plus required state passes mobile/tablet/desktop visual QA in a component showcase or equivalent state harness.** Skipping this gate ships ad-hoc-styled product screens and re-enters the redesign loop.
+**For greenfield or explicit design-system/high-craft work,** do not proceed to product screens until `DESIGN.md` exists, Section 5 names the reusable primitives and their states, and each primitive plus required state passes mobile/tablet/desktop visual QA in a component showcase or equivalent state harness. Ordinary UI changes may proceed from existing primitives and rendered evidence without creating a showcase.
 
-## Phase 0.5 — React Dev Tooling Gate (MANDATORY for React projects)
+## Phase 0.5 — React Dev Tooling Gate (explicit authorization only)
 
-If the project ships React (`react` in `package.json`), three dev-only tools are installed by default before any UI implementation. The user opts out, not in.
+If the project ships React (`react` in `package.json`), do not install or add dev tools by default. Ask for or rely on explicit authorization before changing dependencies; otherwise use the project's existing tools and scripts.
 
 ### Check: are react-grab, react-scan, react-doctor wired?
 
 Grep the entry file (`app/layout.tsx`, `pages/_document.tsx`, `src/main.tsx`, `src/index.tsx`, `app/root.tsx`) for `react-grab` and `react-scan`. Check `package.json` and the skills directory for `react-doctor` traces.
 
-#### If NO → INSTALL THEM NOW
+#### If NO → continue with the existing toolchain
+
+Do not install these tools automatically. If the user explicitly authorizes
+dependency or entrypoint changes, install and gate them as described below;
+otherwise record the missing diagnostics and proceed with the requested UI
+work using the tools already present.
 
 Run from project root:
 
@@ -82,17 +87,22 @@ All three CLIs auto-detect the framework and gate the runtime tools on `process.
 
 Open the entry file. Each tool must sit behind a `NODE_ENV === 'development'` or `import.meta.env.DEV` check. If not, fix the gate before proceeding — the rest of this skill assumes these tools never reach production.
 
-### Skip ONLY when
+### Skip when
 
 - The project is not React (Solid / Svelte / Vue / Qwik / vanilla).
 - The user said "no extra dev dependencies".
+- The user has not explicitly authorized dependency or entrypoint changes; use the existing toolchain.
 - The project is a React library (no entry file to inject into). Static scan via react-doctor still applies.
 
-**This gate is non-negotiable for React projects.** No dev tooling = the agent flies blind on render perf and gets 2× slower edit cycles. Period.
+This diagnostic workflow is optional for ordinary React implementation.
+It becomes required only for an explicit React performance/audit request or
+when the user has authorized adding the tooling.
 
 ## Routing decision flow
 
 Run through this in order and stop at the first match. Do not skip — earlier rules dominate later ones.
+
+For ordinary existing-UI changes with no requested new visual direction, keep the current rendered UI/component patterns instead of selecting a new Layer A/Layer B aesthetic. Load only relevant mechanics references below. Their `DESIGN.md` token instructions refer to the existing project's tokens/patterns when the scoped Design System Gate does not apply; they do not independently require a new document.
 
 ### Step 1 — Did the user name a specific brand or site?
 
@@ -133,13 +143,13 @@ Do NOT use this for greenfield work — the audit phase is wasted effort there.
 
 ### Step 4 — Is this an image-first workflow?
 
-Triggers: "generate the design first then code it", "make a mockup before we build", "show me what it could look like" — AND, by default, any expressive greenfield brief (glossy / premium / wow / brand-grade) with no user-supplied reference.
+Triggers: "generate the design first then code it", "make a mockup before we build", "show me what it could look like", or an explicit high-craft brief that asks for image/reference exploration. Do not impose image-first work on ordinary UI or on a project whose existing UI already establishes the direction.
 
 **Action:** Load both:
 - `image-to-code-skill.md` (the workflow: generate → analyze → implement)
 - `imagegen-frontend-web.md` for web, or `imagegen-frontend-mobile.md` for mobile screens
 
-For an expressive greenfield brief, default to generating **2-3 image concept drafts**, each prompt **seeded with the loaded Layer A + Layer B tokens** (palette, type, signature material) so the drafts inherit the reference's taste instead of generic priors. Pick the strongest, then treat the chosen draft as the reference-fidelity contract for `/visual-qa`.
+For an explicitly image/reference-led or high-craft greenfield brief, generate **2-3 image concept drafts**, each prompt **seeded with the loaded Layer A + Layer B tokens** (palette, type, signature material) so the drafts inherit the reference's taste instead of generic priors. Pick the strongest, then treat the chosen draft as the reference-fidelity contract for `/visual-qa`. Ordinary work infers direction from existing UI or the brief.
 
 If the user wants only the imagery (no code), load only the imagegen file.
 
@@ -200,7 +210,7 @@ Triggers: an animated, shader, particle, or grid background; a hero that must fe
 ## Anti-patterns — do not do these
 
 - **Don't load nothing and just freestyle.** That produces the exact "generic AI SaaS slop" — purple-blue gradient backgrounds, rounded-2xl-on-everything, three feature cards in a grid, generic Inter font, lorem ipsum. The skills exist precisely to prevent this.
-- **Don't mark state with a coloured accent border.** `border-l-2 border-primary` on the selected row, a primary outline on the focused card — on a rounded surface that is the generic AI tell. State is ink-alpha washes, a glyph for selection, tonal layering for focus; `focus-visible` rings are the only coloured edge. Includes pre-existing instances on surfaces you touch.
+- **Avoid default accent stripes on rounded surfaces**, whether decorative or state-bearing: one-sided borders, pseudo-element bars, inset-shadow stripes, gradient `border-image`, and thin hard-stop gradient bands all count. Prefer tonal surfaces, ink-alpha state washes, glyphs, accent-ink headings, or spacing. Explicit user references and established project design language take precedence; this is not permission to restyle existing surfaces. Preserve keyboard `focus-visible` indicators, validation cues, neutral hairlines, and table rules (not unrelated cards nested in a table).
 - **Don't ignore the user's named brand.** If they say "Linear-style" and you build something that doesn't match Linear's actual aesthetic (purple, ultra-tight spacing, mono accents, etc.), you have failed the routing.
 - **Don't apply a Layer B brand verbatim if the project is not that brand.** The DESIGN.md captures *inspiration* — extract the tokens (palette, type scale, component patterns) and apply them to the project's own content. Do not copy logos or trademarked imagery.
 - **Don't use imagegen skills to write code.** They are explicitly image-only. The agent has been observed trying to "describe" the image as React code — that is the wrong skill, switch to `image-to-code-skill.md` instead.
@@ -210,16 +220,16 @@ Triggers: an animated, shader, particle, or grid background; a hero that must fe
 
 Once references are loaded, before writing any UI code:
 
-1. **`DESIGN.md` was read** (or created) in Phase 0. If you skipped it, stop and go back now.
+1. **The applicable design contract was established in Phase 0.** Read an existing `DESIGN.md`; create one when the scoped Design System Gate requires it. For ordinary existing-UI work without one, inspect and follow the current rendered UI and component patterns instead.
 2. **Verify dependencies.** Read `package.json`. Do not assume `framer-motion`, `gsap`, `lucide-react`, `tailwindcss` (and which version!) are installed. If missing, output the install command first.
 3. **Tailwind version lock.** Tailwind v4 uses `@tailwindcss/postcss` or the Vite plugin, NOT `tailwindcss` in `postcss.config.js`. v3 uses different config syntax. Pick based on what's in `package.json`.
 4. **No emojis in code, markup, alt text, or visible UI.** Replace with proper icons (Radix, Phosphor, Lucide) or clean SVG. Emojis are slop signal.
 5. **Viewport stability.** Use `min-h-[100dvh]`, never `h-screen`, for full-height heroes — `h-screen` causes catastrophic jumps on iOS Safari.
 6. **Server vs client components (Next.js).** If motion/state/portals are involved, isolate as a `'use client'` leaf component. Don't bleed `'use client'` to the page level.
 7. **Match the project's existing patterns FIRST.** If the codebase already uses CSS Modules, don't introduce Tailwind. If it uses styled-components, don't introduce CSS-in-JS variants. The references guide *style*, not *infrastructure*.
-8. **All tokens trace back to `DESIGN.md`.** No orphan hex codes, no magic px values. If you need a new token, update `DESIGN.md` first.
-9. **New reusable patterns (used 2+ times) get documented back into `DESIGN.md` Section 5.**
-10. **No generic-default drift (expressive briefs).** The shipped CSS must use the `DESIGN.md` material, not the model's priors. Load the declared fonts (do not silently fall back to Inter or system fonts), build elevated surfaces from the declared multi-layer recipe (not a lone `backdrop-filter: blur`), and color from the ramp stops (not one tint at varied opacity). Grep your styles before QA: finding `Inter`, a single blur on "glass", one brand hex reused everywhere, or a coloured accent border marking selected/focused state (`border-l-2 border-primary` et al) means you regressed to priors — fix it before declaring done.
+8. **Tokens trace back to the applicable design contract.** Follow `DESIGN.md` when present, updating it before introducing a new token. Otherwise reuse existing project tokens and nearby patterns; an ordinary edit does not require creating a design-system document.
+9. **New shared patterns get documented in the existing project convention**, or in `DESIGN.md` Section 5 when the scoped design-system workflow applies. Reusing a nearby pattern does not trigger design-system extraction.
+10. **No generic-default drift (expressive briefs).** The shipped CSS must use the `DESIGN.md` material, not the model's priors. Load the declared fonts (do not silently fall back to Inter or system fonts), build elevated surfaces from the declared multi-layer recipe (not a lone `backdrop-filter: blur`), and color from the ramp stops (not one tint at varied opacity). Inspect changed styles before QA for departures from that contract, including accidental decorative or state accent stripes and their pseudo-element, shadow, or gradient equivalents. Apply the exceptions and reference/project precedence above; a text match alone is not a defect or a reason to remove accessible focus or validation.
 
 ## Quick lookup table — most common requests
 
@@ -246,9 +256,9 @@ Once references are loaded, before writing any UI code:
 
 Before declaring the task done, verify the rendered UI. **The verification authority is `/visual-qa`, not a hand-rolled checklist here.** Run `/visual-qa`: its HIG-based checklist (layout, hierarchy, text, targets, themes, consistency, motion, states, keyboard, platform - including the slop-animation and accent-border-state rules this skill builds against) is judged on its capture matrix (every page and every sibling surface, phone and desktop, light and dark, scrolled-end, motion driven and inspected) by the dual-oracle pass, looping until an independent reviewer passes on fresh evidence. For a concrete reference or clone, run it in reference-fidelity mode.
 
-This skill adds the one design-taste judgment `/visual-qa` cannot make for you. **Two kinds of failure count equally — fix both, then re-check.** Defects are what `/visual-qa` reports. Flatness is a surface that reads generic next to the loaded reference. When the render is bug-free but flat, you are NOT done — RAISE the design: deepen the material layering, give the color a real perceptual ramp (multiple stops / OKLCH, not one tint at varied opacity), render the hero focal object as real dimensional material (a generated bitmap, or real light/shadow/gradient/depth — never flat geometric primitives), and add the one signature moment. Patching only bugs while the surface stays at the floor is the single most common way this skill ships clean-but-generic work.
+For an expressive/high-craft brief, this skill adds the one design-taste judgment `/visual-qa` cannot make for you. **Two kinds of failure count equally — fix both, then re-check.** Defects are what `/visual-qa` reports. Flatness is a surface that reads generic next to the loaded reference. When the render is bug-free but flat, you are NOT done — RAISE the design: deepen the material layering, give the color a real perceptual ramp (multiple stops / OKLCH, not one tint at varied opacity), render the hero focal object as real dimensional material (a generated bitmap, or real light/shadow/gradient/depth — never flat geometric primitives), and add the one signature moment. Patching only bugs while the surface stays at the floor is the single most common way this skill ships clean-but-generic work. For ordinary existing-UI work, judge visual consistency against the existing surface; do not add an unrequested expressive redesign.
 
-Report "done" only when `/visual-qa` has passed on fresh evidence AND no floor-level surface remains.
+Report "done" only when `/visual-qa` has passed on fresh evidence, accessibility/behavior checks are satisfied, and the applicable visual contract is met (including the craft bar for expressive briefs).
 
 ## Final notes
 

@@ -10,6 +10,7 @@ export interface UlwContext {
   ui: { notify(message: string, level?: "info" | "warning"): void };
 }
 interface InputEvent { text: string; source: "interactive" | "rpc" | "extension" }
+interface InputEventResult { text?: string }
 interface UlwMessage { customType: string; content: string; display: false }
 export interface UlwApi {
   registerCommand(name: string, options: { description: string; handler: (args: string, ctx: UlwContext) => Promise<void> }): void;
@@ -17,7 +18,8 @@ export interface UlwApi {
   registerFlag(name: string, options: { description: string; type: "boolean"; default: boolean }): void;
   getFlag(name: string): boolean | string | undefined;
   appendEntry(customType: string, data: unknown): void;
-  on(event: "input", handler: (event: InputEvent, ctx: UlwContext) => void): void;
+  on(event: "input", handler: (event: InputEvent, ctx: UlwContext) => InputEventResult | void): void;
+  on(event: "goal_updated", handler: (event: { goal?: { status?: string } | null; state?: { enabled?: boolean } }, ctx: UlwContext) => void): void;
   on(event: "session_start" | "session_switch" | "session_branch" | "session_tree" | "session_compact", handler: (event: unknown, ctx: UlwContext) => void): void;
   on(event: "before_agent_start", handler: (event: { prompt: string; systemPrompt: string[] }, ctx: UlwContext) => { systemPrompt: string[]; message?: UlwMessage } | undefined): void;
   on(event: "session_stop", handler: (event: { signal: AbortSignal }, ctx: UlwContext) => { continue: true; additionalContext: string } | undefined): void;
@@ -50,6 +52,7 @@ const notAfterIdentifier = String.raw`(?<![A-Za-z0-9][-_.]|[/\\])`;
 const segmentEnd = String.raw`(?![-_.]?[A-Za-z0-9])`;
 const notIntoIdentifier = String.raw`(?![-_](?!(?:loop|plan|research|execute|mass)${segmentEnd})[A-Za-z0-9]|\.[A-Za-z0-9])(?![-_.]?[A-Za-z0-9]*[/\\])`;
 const ulwKeyword = new RegExp(String.raw`${notAfterIdentifier}\b(?:ultrawork|ulw)\b${notIntoIdentifier}`, "i");
+const nativeGoalKeyword = new RegExp(String.raw`${notAfterIdentifier}\b(?:ultrawork|ulw)\b${segmentEnd}`, "i");
 const workflows = [
   { name: "mass-ulw", pattern: /\b(?:mass[\s-]*ulw|ulw[\s-]*mass|mulw|meth)\b/i },
   { name: "ulw-plan", pattern: /\bulw[\s-]*plan\b/i },
@@ -101,6 +104,7 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
   let rearmed = false;
   let inputSource: InputEvent["source"] | undefined;
   let commandPending = false;
+  let nativeGoalActive = false;
   let continuationFingerprint: string | undefined;
   let consecutiveContinuations = 0;
   let continuationStartedAt: number | undefined;
@@ -110,6 +114,7 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
     rearmed = false;
     inputSource = undefined;
     commandPending = false;
+    nativeGoalActive = false;
     continuationFingerprint = undefined;
     consecutiveContinuations = 0;
     continuationStartedAt = undefined;
@@ -118,10 +123,18 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
     }
   };
   for (const event of ["session_start", "session_switch", "session_branch", "session_tree"] as const) pi.on(event, restore);
+  pi.on("goal_updated", event => {
+    nativeGoalActive = event.state?.enabled !== false && event.goal?.status === "active";
+  });
   pi.on("session_compact", () => { rearmed = armed === true; });
-  pi.on("input", event => {
+  pi.on("input", (event, ctx) => {
     inputSource = event.source;
     if (event.source !== "extension") { continuationFingerprint = undefined; consecutiveContinuations = 0; continuationStartedAt = undefined; }
+    if (ctx.agent.kind !== "main" || event.source === "extension" || nativeGoalActive) return;
+    const visible = visibleUlwText(event.text);
+    if (nativeGoalKeyword.test(visible) && !/^\s*\/goal(?:\s|$)/i.test(event.text)) {
+      return { text: `/goal ${event.text}` };
+    }
   });
   for (const name of ["ulw", ...workflows.map(workflow => workflow.name)]) {
     pi.registerCommand(name, {
@@ -130,7 +143,10 @@ export function registerUlw(pi: UlwApi, options: UlwOptions = {}): void {
         commandPending = true;
         continuationFingerprint = undefined;
         consecutiveContinuations = 0;
-        pi.sendUserMessage(`${name}\n\n${args}`);
+        // OMP's sendUserMessage() disables slash-command expansion. A
+        // `/goal ...` payload would therefore be persisted as ordinary user
+        // text instead of creating a native goal.
+        pi.sendUserMessage(name === "ulw" ? `ulw${args ? ` ${args}` : ""}` : `${name}\n\n${args}`);
       },
     });
   }

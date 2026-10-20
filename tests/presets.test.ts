@@ -59,6 +59,7 @@ describe("faithful omo presets", () => {
     }
   });
 
+
   test("official and third-party DeepSeek aliases retain provider-sensitive routing", () => {
     const options = { surface: "terminal" as const, toolNames };
     const model = { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" };

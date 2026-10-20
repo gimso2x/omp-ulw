@@ -138,7 +138,7 @@ Your next move: <fill - the real next step: answer the one open owner decision, 
 
 ## Execution strategy
 ### Parallel execution waves
-> Group todos into a wave only when their write paths, state and proof are disjoint; serialize todos that overlap in write scope. One cohesive change is ONE todo and can be ONE worker - the todo count is not a goal.
+> Group todos by actual dependency waves; put todos in a wave only when their write paths, state and proof are disjoint, and serialize todos that overlap in write scope. One cohesive change is ONE todo and can be ONE worker - the todo count is not a goal; do not impose artificial minimum or maximum counts.
 
 ### Dependency matrix
 | Todo | Depends on | Blocks | Can parallelize with |
@@ -146,7 +146,7 @@ Your next move: <fill - the real next step: answer the one open owner decision, 
 
 ## Todos
 > Implementation + Test = ONE todo. Never separate.
-<!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
+<!-- APPEND TASK BATCHES BELOW THIS LINE WITH native edit/write tools - never rewrite the headers above. -->
 - [ ] 1. <title>
   What to do / Must NOT do (name the allowed write paths): <...>
   Closes: GAP-<n>

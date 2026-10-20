@@ -11,11 +11,11 @@ git clone https://github.com/dbc-hbin/omp-ulw.git
 omp -e ./omp-ulw/index.ts
 ```
 
-- `/ulw <작업>`: ULW 활성화. 이후 같은 세션에서도 유지됩니다.
+- `/ulw <작업>`: ULW를 활성화하는 명령 별칭입니다. native goal이 필요하면 직접 `ulw <작업>` 또는 `/goal ulw <작업>`을 사용합니다.
 - `/ulw-plan`, `/ulw-execute`, `/ulw-loop`, `/ulw-research`, `/mass-ulw`: 계획, 실행, 목표 루프, 리서치, 의존 작업 실행.
 - `/debugging`, `/review-work`, `/visual-qa`, `/frontend` 등: 필요한 전문 스킬 호출.
 
-일반 `/ulw`는 전문 워크플로를 자동으로 켜지 않습니다. 참조 문서는 필요한 시점에만 읽으며, 기존 프로젝트 지침과 권한 규칙을 보존합니다.
+일반 `/ulw`는 전문 워크플로를 자동으로 켜지 않습니다. 직접 입력한 `ulw`/`ultrawork`는 `/goal`로 변환되어 native goal objective로 시작합니다. `/ulw` 명령은 OMP의 `sendUserMessage()`가 slash-command expansion을 끄므로 native goal을 만들지 않습니다. `ulw-loop`와 `ulw-execute`는 다중 목표·증거 ledger를 사용하므로 native goal을 중복 생성하지 않습니다. 참조 문서는 필요한 시점에만 읽으며, 기존 프로젝트 지침과 권한 규칙을 보존합니다.
 
 ## `/ulw-status`와 `/ulw-off`
 
@@ -61,6 +61,14 @@ bun test
 명령은 먼저 ref를 커밋 SHA로 고정하고 그 SHA의 소스만 내려받습니다. 빌드·모든 프리셋 렌더링 검사가 성공한 뒤 `upstream/presets.js` 한 파일을 원자적으로 교체합니다. 다운로드·검증 실패 시 기존 파일은 유지합니다. `--ref`를 생략하면 `main`이며, GitHub API 제한이 있으면 `GITHUB_TOKEN`을 사용할 수 있습니다. 재현하려면 생성 파일 첫 줄의 SHA를 `--ref`로 전달합니다.
 
 자동 갱신 대상은 모델 프리셋입니다. `presets.ts`와 스킬은 덮어쓰지 않습니다. 스킬의 상태 의미나 도구 계약 변경은 OMP 코드와 함께 선별 이식해야 합니다. 기존 스킬 반영 기준은 [OMO v5.1.33](https://github.com/code-yeongyu/oh-my-openagent/tree/5275771d8b38b70ac6e6c737f587abbb4dd36b86)이며, 이번 리서치 시각 검증 보강은 [OMO v5.1.35](https://github.com/code-yeongyu/oh-my-openagent/tree/v5.1.35)에서 선별 이식했습니다.
+
+### 2026-10-19 호환성 점검
+
+- [Senpi `83d3ea5`](https://github.com/code-yeongyu/senpi/tree/83d3ea508d9fdaa620f8e4bb8532f33bbbea2fa9) 후보는 리비전 헤더를 제외하면 기존 프리셋 번들과 동일해 원본 pin을 유지했습니다. `--check`의 `changed:true`는 헤더 변경도 포함하므로 새 프롬프트가 있다는 뜻은 아닙니다.
+- [OMO dev `8593083`](https://github.com/code-yeongyu/oh-my-openagent/tree/8593083a4681ff0bf7d44cd8e6e50f7fdc00e41c)의 accent-stripe 디자인 지침은 사용자 레퍼런스와 기존 디자인을 우선하는 조건으로 선별 반영합니다. 별도 스타일 검사기·고정 감사 절차는 가져오지 않습니다.
+- OMP 보정은 blocking `ask`와 명시적 승인 경계를 유지하고, 요청한 정리·리팩터링에 불필요한 재승인을 요구하지 않습니다. 고정 진행 보고 양식 대신 결과·검증·막힌 항목을 전달하며, 복구 시 사용자·다른 작업자의 변경을 보존합니다.
+- Astra 비동기 지침은 원문 단위 변환을 먼저 수행해 일반 문구 치환이 watcher의 `async: true`, `timeout: 0` 보정을 무효화하지 않도록 했습니다.
+- OMP 18.12.1의 native goal과 전문 워크플로의 durable state를 구분합니다. 일반 UI 변경에는 새 `DESIGN.md`나 Lighthouse 감사를 강제하지 않고, review는 고정 시나리오 수 대신 변경 경로와 실제 위험을 검증합니다. 전역 `AGENTS.md`는 변경하지 않습니다.
 
 ## 테스트
 
