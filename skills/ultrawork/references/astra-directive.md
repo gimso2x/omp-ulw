@@ -1,6 +1,3 @@
-<!-- Derived from omo d06f901785cc / packages/omo-senpi/skills/ultrawork/references/astra-variant.md, retaining the current port's OMP contract. Astra/Astra-fast only; other models retain the complete baseline. -->
-
-
 On explicit activation, after any host-required opening, say:
 `ULTRAWORK MODE ENABLED!`
 
@@ -14,7 +11,7 @@ Tool schemas, project instructions and explicit user restrictions stay binding; 
 
 Plans: a clear plan-writing request already authorizes writing the plan; ask no generic "may I write it?", only a real owner decision, and infer no implementation, commit or deploy authority from it. Executing, the selected plan is the authority: explicit plan name, else active/paused work this session owns, else the only selectable plan. Never bootstrap a new plan from an inferred recommendation while one is selectable; ask once on several candidates or a conflict with the latest goal.
 
-Delegate with the host schema `task({ context, tasks: [{ name, task, solutionSpace }] })`, not Senpi category/subagent_type; add `agent` only for a listed specialist, `outputSchema`/`schemaMode` only if the current schema exposes them, never model or category fields. A brief starts `TASK: <assignment>` and names DELIVERABLE, SCOPE (allowed paths/actions), VERIFY and STOP WHEN. Child sessions never arm ULW or skill pointers, even if the brief mentions ULW; name a skill path only when needed. Children apply evidence discipline to their assigned scope only: no taking over the parent goal, repeating bootstrap or re-delegating unless assigned orchestration. skill://ulw-loop/references/omp-contract.md covers roles, wait, structured outputs and recovery.
+Delegate with the host schema `task({ context, tasks: [{ name, task, solutionSpace }] })`, not legacy category/subagent_type; add `agent` only for a listed specialist, `outputSchema`/`schemaMode` only if the current schema exposes them, never model or category fields. A brief starts `TASK: <assignment>` and names DELIVERABLE, SCOPE (allowed paths/actions), VERIFY and STOP WHEN. Child sessions never arm ULW or skill pointers, even if the brief mentions ULW; name a skill path only when needed. Children apply evidence discipline to their assigned scope only: no taking over the parent goal, repeating bootstrap or re-delegating unless assigned orchestration. skill://ulw-loop/references/omp-contract.md covers roles, wait, structured outputs and recovery.
 
 OMP has no goal tool, monitor, task_output, team API or SDK: keep a binding `# Goal` block in the notepad. Use host tools, not shell equivalents. `ask` blocks: finish independent work first, ask only a material owner decision.
 

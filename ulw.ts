@@ -41,11 +41,12 @@ You are a worker child of an omp session. Work only on the deliverable and paths
 - Post \`WORKING: <task> - <phase>\` before any long pass. When your context nears 200k tokens or the run nears 45 minutes, stop: report what is done, what remains and your changed paths so the orchestrator can re-dispatch the remainder.
 - Do not take over the parent goal, re-plan, run the full suite mid-flight, or spawn further children unless your brief assigns orchestration. Reply in the language of your brief.
 </omp-ulw-worker>`;
+const gpt6FamilyModel = /^gpt[._-]?6(?:[._-]\d+|\d)?[._-](?:astra|sol|luna)(?:[-_.][a-z0-9]+)*$/i;
 
 export function selectUlwDirective(modelId: string | undefined): string {
   if (modelId === undefined) return directive;
   const name = modelId.split("/").at(-1);
-  if (name !== undefined && /^gpt-6-astra(?:-fast)?$/i.test(name)) return astraDirective;
+  if (name !== undefined && gpt6FamilyModel.test(name)) return astraDirective;
   return directive;
 }
 const notAfterIdentifier = String.raw`(?<![A-Za-z0-9][-_.]|[/\\])`;
@@ -59,14 +60,17 @@ const workflows = [
   { name: "ulw-loop", pattern: /\bulw[\s-]*loop\b/i },
   { name: "ulw-execute", pattern: /\bulw[\s-]*execute\b/i },
   { name: "ulw-research", pattern: /\b(?:ulw|mass[\s-]*ulw|ulw[\s-]*mass|mulw|meth)[\s-]*research\b/i },
-  ...["debugging", "review-work", "visual-qa", "visualize", "frontend", "data-scientist", "remove-ai-slops", "hyperplan", "memory-advisor", "reflection", "init-deep"].map(name => ({
+  ...["debugging", "review-work", "visual-qa", "visualize", "frontend", "data-scientist", "remove-ai-slops", "hyperplan", "memory-advisor", "reflection", "init-deep", "ast-grep", "lsp-setup", "refactor"].map(name => ({
     name, pattern: new RegExp(String.raw`(?:^\s*/?|\s/)${name}(?=\s|$)`, "i"),
   })),
 ].map(workflow => ({ ...workflow, pattern: new RegExp(notAfterIdentifier + workflow.pattern.source + notIntoIdentifier, "i") }));
 
 /** Native ULW ignores quoted code and already-expanded directive/pointer blocks. */
 export function visibleUlwText(text: string): string {
-  if (/^\s*(?:\[(?:[A-Z][A-Z0-9_-]{2,}|[\w.-]+ -> [\w.-]+)\]|[A-Z][\w.-]{0,30} \([^()\s]{1,40}\)(?:, | to )[\w.-]{1,40}:)/.test(text)) return text.replace(/[^\r\n]/g, "\0");
+  if (/\[IMPORTANT:\s*User invoked the "[^"\r\n]+" skill; follow its instructions\./i.test(text) ||
+    /^\s*(?:\[(?:[A-Z][A-Z0-9_-]{2,}|[\w.-]+ -> [\w.-]+)\]|[A-Z][\w.-]{0,30} \([^()\s]{1,40}\)(?:, | to )[\w.-]{1,40}:)/.test(text)) {
+    return text.replace(/[^\r\n]/g, "\0");
+  }
   text = text.replace(/<(om[op]-[a-z0-9-]+-pointer|ultrawork-mode|om[op]-(?:ulw|ultrawork)-reminder)>[\s\S]*?<\/\1>/gi, value => value.replace(/[^\r\n]/g, "\0"));
   const fences = /^ {0,3}(`{3,}|~{3,})[^\n]*(?:\n|$)/gm;
   for (;;) {
