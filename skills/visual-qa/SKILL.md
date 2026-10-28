@@ -11,7 +11,7 @@ Verify a rendered UI against the platform baseline, against its reference when o
 
 ## Purpose and when to use
 
-- Use after you build or change a rendered UI, before calling it done. Covers web/page UIs, TUI/terminal UIs, and paginated documents.
+- Use after building or changing a rendered UI, before calling it done; for existing UI, also capture its baseline before edits when available. Covers web/page UIs, TUI/terminal UIs, and paginated documents.
 - Use with or without a reference: a mock, a baseline, or a source site when one exists; otherwise the checklist is the reference. Also when you suspect a regression, when CJK (Korean/Japanese/Chinese) text may clip, misalign, or wrap awkwardly, when a claimed design system might actually be a flat image, or when a terminal layout may overflow or its borders may break.
 - Skip when there is no rendered surface (pure backend or library logic with no visual or terminal output). For broad post-implementation review use review-work; this skill is the visual specialist.
 
@@ -27,6 +27,12 @@ In the commands below, set `SKILL_DIR` to the observed absolute directory contai
 If the change touches both, run both capture tracks and feed both into the passes.
 
 ## Step 2 - Capture objective reference evidence
+
+### Pre-change baseline for existing UI
+
+Before edits, capture the affected existing surface when it is available. Compare the after captures at matching data, interaction state, viewport or window size, scroll position, and theme; for terminal UI also match columns/rows and input state. Use the actual surface's capture tools, including native app or terminal capture where applicable, not a browser reconstruction. Keep this within the scoped coverage below. A regression baseline does not itself turn ordinary work into reference-fidelity work or require an expanded capture matrix.
+
+If the original surface cannot be captured, or edits already happened without a baseline, explicitly report the unavailable baseline and the resulting comparison limit. Do not fabricate or reconstruct a before image as proof. Continue with current-surface evidence and any authentic user reference. Preserve the pre-change capture as historical comparison evidence; the freshness rule below applies to captures proving the current build.
 
 ### Reference packet hygiene
 
@@ -179,17 +185,23 @@ This is the platform baseline, distilled from Apple's Human Interface Guidelines
 
 ## OMP reviewer output contract
 
-Read `skill://visual-qa/references/verdict-schema.json` and include its JSON response contract in each reviewer task. Require every field, including confidence, summary, checklist, evidenceTrace, findings, good, blocking and artifacts; validate returned JSON against that schema before accepting it. Do not pass `outputSchema` or `schemaMode` unless the exposed task schema supports them. Pass A owns G-J; Pass B owns A-F. Put shared intent, complete capture manifest/reference packet, source paths and diff, script JSON and freshness digest in top-level `context`; put each independent read-only charter, allowed reads, no-edit scope, checklist ids and stop condition in its `task`. Set `solutionSpace` to the uncertainty being reviewed. Omit agent and assign read-only reviewer behavior because this workflow requires its own JSON receipt rather than a specialist's fixed response format. Use only exposed dispatch fields. Record actual child ids in a pending set; native `wait({})` wakes on the first settlement/message, so reconcile terminal payloads individually and wait again only while blocked on remaining children. A malformed payload, missing image access or incomplete coverage is not PASS. Read `skill://visual-qa/references/final-verdict-schema.json` and validate the final synthesized verdict against it.
+Read `skill://visual-qa/references/verdict-schema.json` as the parent's normalization contract. For rendered-surface, visual fidelity and behavior assessment, use a specialist only when its advertised role and tools cover that work; otherwise omit `agent` and assign a default worker explicit no-edit scope and the required image/runtime capabilities. The bundled reviewer handles bugs introduced by code diffs, not general visual judging or runtime QA. Retain each raw response and normalize only its supported assessment, confidence, checklist coverage, evidenceTrace, findings, good, blocking and artifacts into that schema. Preserve specialist native formats when used; never invent missing evidence. Do not pass `outputSchema` or `schemaMode` unless exposed and compatible with the selected worker. Pass A owns G-J; Pass B owns A-F. Put shared intent, complete capture manifest/reference packet, source paths and diff, script JSON and freshness digest in top-level `context`; put each independent read-only charter, allowed reads, no-edit scope, checklist ids and stop condition in its `task`. Set `solutionSpace` to the uncertainty being reviewed. Use only exposed dispatch fields. Record actual child ids in a pending set; native `wait({})` wakes on the first settlement/message, so reconcile terminal responses individually and wait again only while blocked on remaining children. Native non-JSON output is not itself a failure; missing image access, unsupported required fields or incomplete coverage cannot become PASS. Read `skill://visual-qa/references/final-verdict-schema.json` and validate the parent's final synthesized verdict against it.
 
 ## Step 3 - Dispatch two read-only QA subagents in parallel
 
 For an actual rendered surface, independent review is REQUIRED before a "done" claim. Do not self-review and call the UI verified. Dispatch both oracles when the surface and reviewer capability exist; if a reviewer or capture capability is unavailable, record `blocked_capability` and do not claim that oracle passed. Pixel-perfect comparison is REQUIRED only for explicit reference-fidelity work. Give each reviewer every enumerated page, not a sample.
 
-Use one native task dispatch with two tasks so both passes run concurrently, following `skill://ulw-loop/references/omp-contract.md`. Each oracle is read-only: it reviews and reports, it cannot modify files. Each returns PASS, REVISE, or FAIL with concrete, located findings. Pass A proves the surface is a real design-system implementation, not a mock-only or faked-image substitute, and judges behaviour: motion, states, keyboard, platform (checklist G-J). Pass B directly opens screenshots and judges what is seen: layout, hierarchy, text, targets, themes, consistency (checklist A-F), reference fidelity and CJK.
+Use one native task dispatch with two independent entries selected under the role contract above so both passes run concurrently, following `skill://ulw-loop/references/omp-contract.md`. Each oracle is assigned read-only scope: it reviews and reports, it cannot modify files or delegate. Each returns an assessment with concrete, located findings; the parent derives PASS, REVISE, or FAIL only when the evidence supports that verdict. Pass A proves the surface is a real design-system implementation, not a mock-only or faked-image substitute, and judges behaviour: motion, states, keyboard, platform (checklist G-J). Pass B directly opens screenshots and judges what is seen: layout, hierarchy, text, targets, themes, consistency (checklist A-F), reference fidelity and CJK.
 
 Paste evidence directly into each prompt: source code, the plain-text TUI captures, the script JSON, and the screenshot paths plus your described observations for web. Never fork parent history into a reviewer - the message carries everything it needs. Require each blocking finding to be tagged `[product]` (the rendered UI is wrong) or `[evidence]` (the capture artifact is defective - wrong signature, partial compositing, stale file); the loop treats the two differently. The two passes differ in depth by charter, not by any model or effort setting, which cannot be pinned per call.
 
+For both passes, distinguish an actual defect from a taste preference, independently of the `[product]`/`[evidence]` classification. Tie defects to observable behavior, accessibility, content, platform requirements, or the user's design contract. Taste alone is advisory: it cannot make a checklist item FAIL, block completion, or trigger a repair loop. A mismatch with an explicit visual reference remains a defect, not a taste preference.
+
+Check content preservation against the brief and, when available, the baseline: required inputs, data, labels, copy, and actions must remain present and usable unless the user requested their change or removal. A cleaner composition obtained by hiding or dropping required content is a product defect.
+
 ### Pass A - Design-system and functional integrity (deeper, strict)
+
+The OUTPUT sections below describe information needed for parent normalization. Ask the specialist to cover it within its native response format, not to replace that format.
 
 ```text
 REVIEW TYPE: DESIGN-SYSTEM AND FUNCTIONAL INTEGRITY (read-only)
@@ -293,9 +305,9 @@ When both passes return, merge them into a single report: one row per checklist 
 
 This is a hard stop rule, not a guideline. The UI is NOT done until ALL applicable conditions hold on the SAME current build:
 
-- Both applicable independent read-only passes returned PASS with no blocking findings (both are required when the surface is rendered and the capability exists).
+- Both applicable independent reviewer assessments support the parent's normalized PASS with no blocking findings and complete coverage (both are required when the surface is rendered and the capability exists).
 - That reviewer judged a FRESH capture of every enumerated page from Step 2 - no stale artifacts, no skipped pages.
-- Every CJK and layout finding is resolved in the rendered output, not merely noted.
+- Every CJK and layout defect is resolved in the rendered output, not merely noted; taste-only suggestions do not trigger this gate.
 
 If any page fails, treat product and evidence findings differently and allow at most 3 repair/review rounds (or the shared repair tracker's earlier stop). `[product]` findings require source fixes and fresh reviewers; `[evidence]` findings require capture repair without touching product code. If the bound is exhausted, record the residual findings and capability gaps; never self-certify a silent PASS.
 
@@ -330,7 +342,7 @@ Captured: {N pages} x {390, 1440[, 1920]} x {light, dark} + scrolled-end + motio
 
 Run this step IN ADDITION to Steps 1-4 when the original user task has a concrete visual target: "clone this site", "move this Figma design to code", "rebuild this screen", "make it look exactly like X", or "build this Imagen/Stitch/generated mockup and overview". For these tasks the normal dual-oracle is necessary but NOT sufficient. After it returns, run the following TWO additional MANDATORY verifications and LOOP until BOTH pass.
 
-1. Pixel-perfect design-compare subagent (visual oracle). Dispatch a focused, read-only design-compare reviewer (use the actual listed reviewer role; OMP owns its model and reasoning routing). It must crop/zoom BOTH the reference (target / Figma export / source-site screenshot / generated page snapshot) and the ACTUAL screenshot into matching regions and read them **pixel-by-pixel** - header, nav, each card, spacing, type ramp, color tokens - not at a glance. It must also compare the overview text or annotations against the rendered content and DOM text. Anchor every claim with the bundled tool:
+1. Pixel-perfect design-compare subagent (visual oracle). Dispatch a focused worker with image inspection and comparison capabilities, under the role-selection contract above and with explicit no-edit scope; OMP owns its model and reasoning routing. It must crop/zoom BOTH the reference (target / Figma export / source-site screenshot / generated page snapshot) and the ACTUAL screenshot into matching regions and read them **pixel-by-pixel** - header, nav, each card, spacing, type ramp, color tokens - not at a glance. It must also compare the overview text or annotations against the rendered content and DOM text. Anchor every claim with the bundled tool:
 
 ```
 node "$SKILL_DIR/scripts/visual-qa.mjs" image-diff <reference.png> <actual.png>
@@ -338,9 +350,9 @@ node "$SKILL_DIR/scripts/visual-qa.mjs" image-diff <reference.png> <actual.png>
 
    It judges whether layout geometry, spacing, design tokens (color, type, radius, shadow), and the design itself are identical to the target, region by region. Anything off by more than rounding is a finding.
 
-2. Code-level design-system fidelity (code oracle). Dispatch through your harness's own subagent tool.
+2. Code-level design-system fidelity (code oracle). Dispatch through native task with `agent: "reviewer"` inside its `tasks[]` entry.
 
-   Its charter is read-only source/token/DOM/layer fidelity: inspect the current diff, source and reference artifacts; reject pasted-image substitutes, one-off hardcoded styling, wrong hierarchy and unmatched target design. Return the strict reviewer payload described in `references/verdict-schema.json`, with concrete blockers and inspected evidence.
+   Its charter is code-diff bugs that violate the stated source/token/DOM/layer fidelity contract: inspect the current diff, consumers and reference artifacts, and report concrete regressions such as a pasted-image substitute or a hierarchy that cannot implement the target. General aesthetic judgments belong to the visual oracle. Both return assessments with concrete blockers and inspected evidence. The parent preserves each raw response, including the code reviewer's native format, and normalizes supported findings into `references/verdict-schema.json`; neither oracle must emit that custom schema. Missing evidence or coverage blocks completion.
 
 RULE (mandatory, non-negotiable): the reference-fidelity task is NOT done until BOTH the pixel-compare AND the code-level design-system fidelity reviewer confirm that the **layer structure, the design system, and the design itself** match the target. If EITHER fails, it is a MANDATORY retry: re-implement the gaps and re-run BOTH verifications from the top. Repeat the retry loop until both pass on the same revision. Never declare reference-fidelity complete on a single pass, on visual-only evidence, or on code-only evidence - both oracles must confirm on the same build.
 
