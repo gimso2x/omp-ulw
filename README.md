@@ -32,14 +32,16 @@ omp -e ./omp-ulw/index.ts
 ## OMP skill set
 
 - **Orchestration:** `ultrawork`, `ulw-plan`, `ulw-execute`, `ulw-loop`, `ulw-research`, `mass-ulw`, `hyperplan`
-- **Code understanding:** `debugging`, `ast-grep`, `lsp-setup`, `refactor`
+- **Code understanding:** `debugging`, `ast-grep`, `lsp-setup`, `refactor`, `programming`
 - **Review and product work:** `review-work`, `remove-ai-slops`, `frontend`, `visual-qa`, `visualize`, `data-scientist`
 - **Project and memory workflows:** `init-deep`, `reflection`, `memory-advisor`
 
 The three newly ported code skills use the native `xd://ast_grep` and
-`xd://lsp` contracts. Browser automation, session archaeology, git history
-operations and generic programming guidance remain host-level concerns or
-project rules rather than copied skill bundles. DAG persistence, tip catalogues
+`xd://lsp` contracts. `programming` carries the per-language rules, the test
+authoring gate and junk-test classes, and the Bun scripts that `remove-ai-slops`
+calls (`check-test-junk.ts`, `mutation-proof.ts`). Browser automation, session
+archaeology and git history operations remain host-level concerns or project
+rules rather than copied skill bundles. DAG persistence, tip catalogues
 and first-run onboarding were not ported because this repository has no
 equivalent OMP runtime API for them.
 
@@ -54,6 +56,8 @@ equivalent OMP runtime API for them.
 `prompts/`의 Markdown 파일은 모델별 프롬프트가 아니라 ULW 워크플로 호출 템플릿입니다. 템플릿의 스킬 경로는 템플릿 파일 기준 상대경로이며, 확장은 실제 설치 위치에서 스킬 경로를 계산하므로 저장소를 다른 위치에 두어도 동작합니다.
 
 서브에이전트는 부모의 프리셋을 복사하지 않고 **자신의 선택된 모델과 실제 활성 도구 목록**으로 프리셋을 생성합니다. OMP 기본 시스템 블록의 역할 영역만 교체하고, 뒤에 붙는 자식 전문 역할·공유 context·할당 작업·반환 프로토콜은 보존합니다. 자식용 보정은 이 역할·권한·검증 제한이 일반 모델 지침보다 우선하도록 하며, 사용자 대상 시작 문구·진행 보고·todo를 부모처럼 수행하지 않게 합니다. 일반 worker와 sonic에 이미 노출된 `eval`은 모델 지침에 반영되지만, scout 등에 없는 도구를 새로 부여하지 않습니다.
+
+2026-10-27 임시 보정: 업스트림에서 아직 매칭하지 않는 `gpt-6.1-terra`는 **서브에이전트에서만** `gpt-6.1-sol`과 동일한 `gpt-6-astra` 프리셋을 사용합니다. provider 접두사·Fast 접미사·`gpt-6-1-terra`·`gpt-61-terra`·표시 이름 `GPT 6.1 Terra`도 인식합니다. 실제 요청 모델은 Terra로 유지하고, 메인 세션의 선택 규칙은 변경하지 않습니다. 업스트림이 해당 모델의 프리셋을 제공하면 그 선택이 우선합니다.
 
 명시적 커스텀/인식 불가 시스템 템플릿은 그대로 유지하고, 미지원 모델은 기본 OMP 역할을 사용합니다. 자식에서 ULW를 자동 활성화하지 않습니다. `seance`처럼 OMP가 확장 자체를 격리하는 세션은 이 주입 경로의 대상이 아닙니다. provider 요청 훅을 우회하는 전송은 메인과 마찬가지로 턴 시작 시점의 프리셋만 보장합니다. 설치된 확장 변경은 새 OMP 세션을 시작해야 반영됩니다.
 
@@ -78,6 +82,33 @@ bun test
 명령은 먼저 ref를 커밋 SHA로 고정하고 그 SHA의 소스만 내려받습니다. 빌드·모든 프리셋 렌더링 검사가 성공한 뒤 `upstream/presets.js` 한 파일을 원자적으로 교체합니다. 다운로드·검증 실패 시 기존 파일은 유지합니다. `--ref`를 생략하면 `main`이며, GitHub API 제한이 있으면 `GITHUB_TOKEN`을 사용할 수 있습니다. 재현하려면 생성 파일 첫 줄의 SHA를 `--ref`로 전달합니다.
 
 자동 갱신 대상은 모델 프리셋입니다. `presets.ts`와 스킬은 덮어쓰지 않습니다. 스킬의 상태 의미나 도구 계약 변경은 OMP 코드와 함께 선별 이식해야 합니다. 현재 스킬은 OMP 도구·task 계약에 맞춘 native 포트만 유지합니다.
+
+### 2026-11-01 OMO 워크플로 스킬 후속 반영
+
+- **`ulw-plan`:** 리뷰 라운드 5회 상한을 없애고 진행 기반 종료로 바꿨습니다. 직전 라운드가 새 blocker를 찾거나 기존 blocker를 닫았을 때만 다음 라운드를 열고, 둘 다 없으면 미해결 blocker를 보고하고 사용자에게 묻습니다. 수렴 계약 JSON(`max_rounds: null`, `continue_while`, `stop_on`)도 같이 바꿨습니다.
+- **`visualize`:** 미리보기 전에 `frontend`의 `check-draft-guard.ts` lint를 통과해야 합니다.
+- **`mass-ulw`:** 앞 wave 전체에 의존하는 다음 wave는 리뷰 노드 하나로 연결합니다(n×m 대신 n+m 의존성).
+- 출처: [OMO `9ddcfaac`](https://github.com/code-yeongyu/oh-my-openagent/commit/9ddcfaac8), [`bbd125e3`](https://github.com/code-yeongyu/oh-my-openagent/commit/bbd125e3c), [`634b4ed9`](https://github.com/code-yeongyu/oh-my-openagent/commit/634b4ed9c), OMO `8bda141b`의 `mass-ulw/references/planning.md`.
+
+### 2026-11-01 OMO 테스트 정리·프론트엔드 검사 이식
+
+- **`programming` 스킬 신규:** OMO `8bda141b`의 언어별 규칙, 테스트 작성 게이트(`references/testing/`), Bun 스크립트를 가져왔습니다. 스크립트 경로는 `$SKILL_DIR` 기준이며, 업스트림 단위 테스트는 포함하지 않습니다.
+- **`remove-ai-slops`:** 9번 범주를 "누락 또는 junk 테스트"로 바꿨습니다. 테스트 선언은 R/F/C/D로 표시하고, 기준 상태에서 이미 실패하던 테스트는 버그로 기록합니다. `check-test-junk.ts`로 정적 검사를 하고, 삭제 전에는 루트가 `mutation-proof.ts`로 한 건씩 증명합니다.
+- **`frontend`:** grounding(이상 상태·gap ledger), craft-floor 수치 기준, 상태별 크기 고정, 결과물별 WCAG 2.2 AA 결과표를 추가했습니다. 렌더 후 lint로 detect SDK(`scripts/detect/`)와 소스 lint `check-draft-guard.ts`를 함께 제공합니다. detect는 `Bun.WebView`를 쓰며, Bun 1.4.2에서 `--reflow` 스크립트가 평가되지 않던 문제(끝의 `;`)를 고쳤습니다. 라이선스 고지는 `ATTRIBUTION.md` 6·7절에 있습니다.
+- **`visual-qa`:** 리뷰어 전에 detect 사전 검사를 돌리고, 체크리스트 A13·B8·E7·F8·F9를 추가했습니다(A3 측정 기준 갱신). `verdict-schema.json` id 목록도 함께 늘렸습니다.
+
+### 2026-11-01 OMP 18.14.2 계약 반영
+
+- **프리셋 갱신:** Senpi `b6f8bd72ffe6c9f8e754e466fa54970c6002fbc8`로 고정했습니다. 33개 프리셋의 terminal/app 렌더 중 바뀐 것은 DeepSeek V4.1 Flash 전체 코어 재작성뿐이며, 모델 선택 규칙은 동일합니다.
+- **per-call `model`:** OMP 18.13+의 `task`는 운영자가 승인한 정확한 모델 ID를 spawn·`tasks[]` 항목 단위로 받습니다. 스킬은 live 스키마가 승인 목록을 광고할 때만 그 정확한 ID를 쓰고, category와 OMO 추론 등급 이름은 계속 보내지 않습니다. `sourceSession`은 seance 전용입니다.
+- **Visual QA:** 두 리뷰어 프롬프트에 화면 brief와 필수 콘텐츠 목록을 이름 단위로 전달하고, TUI 증거의 `expectedColumns`를 주요 필드로 명시합니다.
+- **OMP:** 설치본과 최신 정식 릴리스 `18.14.2`를 기준으로 합니다. `host.ts`·`payload.ts`의 치환 대상 문구는 이 릴리스에서도 일치합니다. opt-in `taskFile`은 기본 비활성이라 문서화하지 않습니다.
+- 출처: [Senpi DeepSeek V4.1 Flash 변경](https://github.com/code-yeongyu/senpi/blob/b6f8bd72ffe6c9f8e754e466fa54970c6002fbc8/packages/coding-agent/src/core/extensions/builtin/prompt-preset/changes.md), [OMP task 도구 설명](https://github.com/can1357/oh-my-pi/blob/v18.14.2/packages/coding-agent/src/prompts/tools/task.md), [OMO visual-qa](https://github.com/code-yeongyu/oh-my-openagent/blob/dev/packages/shared-skills/skills/visual-qa/SKILL.md).
+
+### 2026-10-29 거부는 최종
+
+- 모든 모델 프리셋 끝에 OMO의 거부 규칙을 붙입니다. 권한·승인 거부나 사용자 거절은 그 호출이 하려던 일에 대해 최종이며, 다른 도구·명령·경로·호스트로 같은 결과를 내지 않습니다. 독립적인 작업은 계속하고, 메인 세션은 거부된 단계를 사용자에게 묻고 서브에이전트는 부모에게 막힌 항목으로 보고합니다.
+- 출처: [OMO `192c1138` 거부 규칙](https://github.com/code-yeongyu/oh-my-openagent/commit/192c1138).
 
 ### 2026-10-26 선별 이식
 

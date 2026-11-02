@@ -1,10 +1,19 @@
 import { ASYNC_DEFAULT, MONITOR_CONDITIONS, TURN_END_IS_WAIT, buildPreset, resolvePresetName } from "./upstream/presets.js";
 
 export interface PresetModel { id: string; name?: string; provider?: string }
-export interface PresetOptions { surface: "terminal" | "app"; toolNames: string[] }
+export interface PresetOptions { surface: "terminal" | "app"; toolNames: string[]; subagent?: boolean }
 
 export function renderPreset(model: PresetModel, options: PresetOptions): { name: string; prompt: string } | undefined {
-  const name = resolvePresetName({ id: model.id, name: model.name, provider: model.provider }, { promptPreset: "auto" });
+  let name = resolvePresetName({ id: model.id, name: model.name, provider: model.provider }, { promptPreset: "auto" });
+  // Temporary child-only alias until upstream supplies GPT-6.1 Terra routing.
+  if (!name && options.subagent) {
+    const terra = /(^|[/@:._-])gpt[._-]?6(?:[._-]1|1)[._-]terra(?=$|[/@:._-])/i;
+    name = resolvePresetName({
+      id: model.id.replace(terra, "$1gpt-6.1-sol"),
+      name: model.name?.replace(/\s+/g, "-").replace(terra, "$1gpt-6.1-sol"),
+      provider: model.provider,
+    }, { promptPreset: "auto" });
+  }
   if (!name) return undefined;
   const preset = buildPreset(name, { surface: options.surface, selectedTools: options.toolNames });
   if (!preset) return undefined;
@@ -146,5 +155,7 @@ export function renderPreset(model: PresetModel, options: PresetOptions): { name
   prompt = prompt.replace(/make one change, render or screenshot it, look, then make the next;/g, "make one change, measure it first (DOM width/line count/visibility, innerText, URL), screenshot only what must be seen and save it to a file instead of inlining it when the conversation already holds several images, then make the next;")
     .replace(/gets one change, a render or screenshot, a look, then the next change;/g, "gets one change, a numeric or text check first (DOM measurement, innerText, URL), a screenshot only when something must be seen - saved to a file rather than inlined once several images are already in the conversation - then the next change;");
   prompt = prompt.replace("Consult Oracle before deploying non-trivial work.", "Use a review worker before deploying non-trivial work.");
+  // OMO refusal rule: generic "try another approach" guidance never applies to a denial.
+  prompt += `\n\n## Refusals are final\n\nA permission or approval denial, or a refusal by the user, is not a blocker to work around: it is final for what that call was meant to do. Never reach that result with another tool, command, path or host. Continue independent work, then ${options.subagent ? "report the refused step to the parent as a blocker" : "ask the user about the refused step"}.`;
   return { name: preset.name, prompt };
 }
