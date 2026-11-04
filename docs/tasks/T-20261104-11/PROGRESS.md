@@ -1,7 +1,7 @@
 ---
 task: T-20261104-11
 status: working
-updated: 2026-11-04T11:31:12+09:00
+updated: 2026-11-04T11:31:55+09:00
 current: S6
 next: ompbot Outcome 판정 대기(오너 리뷰 후 personal/ulw ff 이동·push)
 blocked_reason:

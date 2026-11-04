@@ -24,6 +24,9 @@
 - file: tests/ulw-host-check.ts (`--no-prewalk` 추가: 600ad5c·origin/main에서도 `error: OMP settled with requests=2/1`로 실패하던 호스트 설정 간섭 격리)
 
 ## AC-5
+- commit: 3424d58 Merge origin/main (0d6e010) into personal/ulw line
+- test: `for c in 8095099 f233397 1967dce b7157d7 f5114b1 4551798 fc404ca 036ec1d 3363083 425a6b6 b66b38f c2bd33c d8b03e3 c6fc021; do grep -cE "^\| \`$c\` \|[^|]+\| (유지|원본 대체|폐기|일부 유지)[^|]*\|[^|]+\|$" docs/tasks/T-20261104-11/PROGRESS.md; done | sort | uniq -c` → `14 1` (14개 커밋마다 처리·근거가 있는 행이 정확히 1줄)
+- test: `git show 3424d58:docs/tasks/T-20261104-11/PROGRESS.md | grep -cE '^\| \`[0-9a-f]{7}\` \|'` → `14`
 - file: docs/tasks/T-20261104-11/PROGRESS.md (`# 증거: 개인 커밋 처리표` 14행: 유지 4, 원본 대체 6, 일부 유지 4)
 
 ## AC-6
