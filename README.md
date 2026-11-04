@@ -29,6 +29,28 @@ omp -e ./omp-ulw/index.ts
 - 턴이 끝날 때 `doc/boulder.json`(execute)이나 `doc/ulw-loop/<세션>/goals.json`(loop)에 이 세션이 맡은 미완 작업이 있으면 다음 턴을 자동으로 시작합니다. 이어갈 때마다 `ULW 이어가기 n/8 · <작업> · 경과 m분` 알림을 띄우고, 상태 파일이 직전과 같으면(진전 없음) 멈춥니다.
 - 사용자 입력 없이 2시간이 지나면 이어가기를 멈추고 경고 알림을 띄웁니다. 메시지를 하나 보내면 횟수와 시간이 초기화되어 다시 이어갑니다.
 - 하위 에이전트에는 부모의 ULW 정책 대신 짧은 `<omp-ulw-worker>` 블록이 들어갑니다. `edit`/`write`로만 수정(bash `sed -i` 금지), git 조작 금지, 정식 도구 이름만 사용, 45분·200k 토큰을 넘기면 부분 결과로 반환하라는 내용입니다. `--omo-ultrawork-disabled` 플래그를 켜면 이 블록도 들어가지 않습니다.
+
+## OMP와 ULW의 책임
+
+공통 실행 방식은 OMP가 소유합니다. 작업 분해, 위임과 모델 선택, 도구 사용, 비동기 대기, 테스트·실사용 검증, 권한·git 작업, 진행 보고를 ULW에서 다시 정의하지 않습니다. 전문 명령은 아래 native 키워드로 연결하며, 알림 내용·도구 조건·활성화 설정·thinking effort는 OMP가 처리합니다.
+
+| 진입점 | 기본 native 연결 | ULW가 추가하는 기능 |
+|---|---|---|
+| `/ulw`, `ulw`, `ultrawork` | 기존 goal 연결만 유지 | 세션 활성화. 별도 notepad·ledger·검증 절차 없음 |
+| `/ulw-plan` | `ultrathink` | 구현하지 않는 계획 작성, 결정·계획 검토 기록, 실행 가능한 계획 산출물 |
+| `/ulw-execute` | `orchestrate` | 계획 선택, Boulder 소유권, 체크박스별 완료·차단·재개 기록 |
+| `/ulw-loop` | `orchestrate` | 다중 목표·의존성·증거 체크포인트 |
+| `/mass-ulw` | `workflowz` | 지속 가능한 의존성 그래프, 노드별 인계·무효화·복구 기록 |
+| `/ulw-research` | `workflowz` | 조사 범위, 주장·출처·관찰 기록, 반론 검증과 인용된 산출물 |
+
+TUI/RPC `prompt` 입력의 맨 앞에 놓인 전문 명령·별칭과 등록된 슬래시 명령 처리기에 적용됩니다. 예를 들어 `/ulw-execute 작업`은 `orchestrate`를 덧붙여 OMP에 전달합니다. `/ulw-execute workflowz 작업`처럼 사용자가 native 키워드를 지정하면 자동 선택을 생략합니다. 인수의 인용·부정 문장에 native 키워드가 있어도 보수적으로 자동 선택을 생략하고 실제 활성화 여부는 OMP matcher에 맡깁니다. 일반 언급·자식 입력·후속 `continue`에는 기본 키워드를 추가하지 않습니다. 초기 CLI의 일반 텍스트나 `/skill:` 직접 호출처럼 입력 훅·명령 처리기를 거치지 않는 경로에서는 native 키워드를 명시해야 합니다.
+
+OMP 18.16의 별도 RPC `steer`·`follow_up` 요청은 native 키워드 처리를 건너뛰므로 자동 연결 대상이 아닙니다. RPC 클라이언트는 `{"type":"prompt","message":"ulw-loop 작업","streamingBehavior":"steer"}` 또는 `"followUp"`을 사용해야 native 키워드 처리와 큐 전달을 함께 거칩니다. 확장은 입력 이벤트에서 RPC 요청 종류를 알 수 없으므로, 이를 임의의 새 메시지로 재전송해 큐 순서·첨부를 바꾸지 않습니다.
+
+`--omo-ulw-workflows-disabled`는 자동 연결도 끕니다. OMP의 `magicKeywords.enabled`와 개별 키워드 설정, 필요한 `task`/`eval` 도구 조건을 그대로 존중하며, 사용할 수 없는 모드를 복사한 지침으로 대체하지 않습니다. `jevify`는 대량 분류 전용이므로 자동 선택하지 않습니다.
+
+단순 병렬 실행에는 OMP의 실행 기능을 사용하고, 저장된 그래프가 필요한 경우에만 `mass-ulw`를 추가합니다. 전문 워크플로의 산출물·상태 계약은 유지하지만, 기본 ULW와 각 참조 문서가 별도 실행 정책을 겹쳐 주입하지 않습니다. 모델 프리셋은 기존대로 유지하고, ULW 정책은 모든 모델에서 `skills/ultrawork/SKILL.md` 한 곳을 사용합니다.
+
 ## OMP skill set
 
 - **Orchestration:** `ultrawork`, `ulw-plan`, `ulw-execute`, `ulw-loop`, `ulw-research`, `mass-ulw`, `hyperplan`
@@ -41,9 +63,9 @@ The three newly ported code skills use the native `xd://ast_grep` and
 authoring gate and junk-test classes, and the Bun scripts that `remove-ai-slops`
 calls (`check-test-junk.ts`, `mutation-proof.ts`). Browser automation, session
 archaeology and git history operations remain host-level concerns or project
-rules rather than copied skill bundles. DAG persistence, tip catalogues
-and first-run onboarding were not ported because this repository has no
-equivalent OMP runtime API for them.
+rules rather than copied skill bundles. Persistent DAG records are lead-owned
+files, not a separate orchestration runtime. Tip catalogues and first-run
+onboarding were not ported.
 
 ## 모델별 프롬프트 위치
 
@@ -82,6 +104,24 @@ bun test
 명령은 먼저 ref를 커밋 SHA로 고정하고 그 SHA의 소스만 내려받습니다. 빌드·모든 프리셋 렌더링 검사가 성공한 뒤 `upstream/presets.js` 한 파일을 원자적으로 교체합니다. 다운로드·검증 실패 시 기존 파일은 유지합니다. `--ref`를 생략하면 `main`이며, GitHub API 제한이 있으면 `GITHUB_TOKEN`을 사용할 수 있습니다. 재현하려면 생성 파일 첫 줄의 SHA를 `--ref`로 전달합니다.
 
 자동 갱신 대상은 모델 프리셋입니다. `presets.ts`와 스킬은 덮어쓰지 않습니다. 스킬의 상태 의미나 도구 계약 변경은 OMP 코드와 함께 선별 이식해야 합니다. 현재 스킬은 OMP 도구·task 계약에 맞춘 native 포트만 유지합니다.
+
+### 2026-11-04 모델 프리셋과 OMP 보정 갱신
+
+- **프리셋:** Senpi `9815495b8ee5e936e48d1ba5e293eea7642a0529`로 갱신했습니다. 등록 수는 33개이며 새 모델 추가는 없습니다. GPT-6 Astra는 근본 원인 진단, 간결한 코어, 완료 조건에 통합한 검증, 새 문체 지침을 사용합니다.
+- **모델별 공통 지침:** 업스트림의 `sharedSections: "full" | "diet"` 선택을 모델 코어와 기본 조립 경로에 전달합니다. Opus·Fable 9개 프리셋은 축약 전 원문을 유지하고, 나머지 24개는 새 공통 지침 또는 Astra 코어 개정을 적용합니다. 도구·프로젝트·스킬·워크스테이션 영역은 계속 OMP가 소유합니다.
+- **OMP 보정:** 전체형·축약형 양쪽의 보고 형식과 요청 의도 분류를 보정합니다. 활성 `ask`는 업스트림 질문 규칙의 조건을 충족한 뒤 OMP의 blocking 계약으로 변환됩니다. Astra는 `eval` 유무 모두에서 Senpi `monitor` 대신 async bash와 native `wait`를 사용합니다. 승인 없는 외부·유료 작업과 사용자 변경 복원을 허용하지 않으며, DeepSeek V4.1의 축약된 지침 우선순위·백그라운드 대기도 OMP 계약에 맞췄습니다.
+- **OMO:** `dev` `8c087588677b63ccb80affb46f2c485625f929b1`의 모델 프롬프트·에이전트 트리는 이전 `8bda141b` 기준과 동일합니다. 기존 거부 확정 규칙을 유지하며 추가 이식은 없습니다.
+- **OMP:** 설치본과 최신 정식 릴리스 `18.16.0` (`650f3a108229ee11bf68ba3377f4e8c3391cd424`)을 기준으로 시스템 프롬프트 경계, task 지침, 부모·자식 세션 및 provider 훅 계약을 확인했습니다. 호스트 보정 코드는 그대로 호환됩니다. 미출시 main `ff0a986b`의 user-chosen effort와 per-call model 충돌 규칙은 정식 버전의 계약으로 이식하지 않습니다.
+
+출처: [Senpi 고정 리비전](https://github.com/code-yeongyu/senpi/tree/9815495b8ee5e936e48d1ba5e293eea7642a0529), [Astra 코어 개정](https://github.com/code-yeongyu/senpi/commit/d92272573fc01f38d8798d20391d77dc3853778a), [Opus·Fable 원문 복원](https://github.com/code-yeongyu/senpi/commit/71845495e8bb0362cac2f44a6a11a961be9af659), [OMO 비교 기준](https://github.com/code-yeongyu/oh-my-openagent/commit/8c087588677b63ccb80affb46f2c485625f929b1), [OMP 18.16.0](https://github.com/can1357/oh-my-pi/releases/tag/v18.16.0).
+
+### 2026-11-03 ULW 책임 축소
+
+- 명령 이름·별칭·템플릿·비활성화 플래그와 goal 연결·상태 복원·계속 실행 훅은 보존했습니다.
+- 모델별 장문 ULW 정책을 단일 정책으로 통합하고, 공통 실행·위임·검증 규칙은 OMP에 맡겼습니다.
+- 계획·실행·루프·DAG·리서치 문서와 관련 참조는 각 기능의 산출물·상태 계약 중심으로 축소했습니다.
+- 실제 호스트 검증은 명령별 포인터, 세션 지속·goal 보존, 상태 기반 계속 실행과 명시적 native 키워드의 독립 동작을 확인합니다.
+- 전문 명령·별칭은 적합한 native 키워드에 자동 연결합니다. 명시적 선택, OMP 비활성화 설정과 도구 조건을 보존하고, native 알림을 중복 구현하지 않습니다.
 
 ### 2026-11-01 OMO 워크플로 스킬 후속 반영
 
