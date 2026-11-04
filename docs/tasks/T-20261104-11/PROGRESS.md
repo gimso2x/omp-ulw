@@ -1,9 +1,9 @@
 ---
 task: T-20261104-11
 status: working
-updated: 2026-11-04T11:29:29+09:00
-current: S5
-next: merge 커밋 후 outcome.md·spec.md AC 증거를 적는다
+updated: 2026-11-04T11:29:43+09:00
+current: S6
+next: ompbot Outcome 판정 대기(오너 리뷰 후 personal/ulw ff 이동·push)
 blocked_reason:
 question:
 recommend:
@@ -14,8 +14,8 @@ impact:
 - [x] S2: `git merge origin/main`(0d6e010) 후 원본 2커밋·개인 14커밋 의도 파악 | 완료 조건: 충돌 16파일 목록 확인, 커밋별 의도 메모 | 증거: `git merge --no-commit origin/main` → 16파일 CONFLICT(스펙 목록과 동일), 아래 처리표
 - [x] S3: 16파일 충돌 해결(원본 구조 기준, 개인 의도 재적용) | 완료 조건: 충돌 마커 0줄 | 증거: `grep -rnE '^(<<<<<<<|>>>>>>>|\|\|\|\|\|\|\|)' --include=*.ts --include=*.md --include=*.mjs --include=*.js .` → 0
 - [x] S4: 검증 | 완료 조건: `bun test` 실패 0, `bun tests/ulw-host-check.ts` exit 0 | 증거: test `bun test` → `79 pass / 0 fail / Ran 79 tests across 9 files.`; test `bun tests/ulw-host-check.ts` → `exit=0`, `"status":"PASS","requests":85`, `"cleanup":{"ownedChildren":70,"childrenExited":70,"providerStopped":true,"tempRootsCreated":6,"tempRootsRemoved":6}`. 참고: `--no-prewalk` 추가 전에는 600ad5c·origin/main·병합본 모두 `error: OMP settled with requests=2/1`(카탈로그 시나리오, 호스트 `prewalk.auto: on`)로 실패
-- [ ] S5: merge 커밋 | 완료 조건: merge 커밋이 0d6e010·600ad5c를 조상으로 포함 | 증거:
-- [ ] S6: outcome.md·spec.md AC 체크, 라이브 체크아웃 personal/ulw 불변 확인 | 완료 조건: AC-1~6 증거 기재, `git -C /home/ubuntu/work/omp-ulw rev-parse personal/ulw origin/personal/ulw` 둘 다 600ad5c | 증거:
+- [x] S5: merge 커밋 | 완료 조건: merge 커밋이 0d6e010·600ad5c를 조상으로 포함 | 증거: commit 3424d58; test `git merge-base --is-ancestor 0d6e010 HEAD` → 0, `git merge-base --is-ancestor 600ad5c HEAD` → 0
+- [x] S6: outcome.md·spec.md AC 체크, 라이브 체크아웃 personal/ulw 불변 확인 | 완료 조건: AC-1~6 증거 기재, `git -C /home/ubuntu/work/omp-ulw rev-parse personal/ulw origin/personal/ulw` 둘 다 600ad5c | 증거: test `git -C /home/ubuntu/work/omp-ulw rev-parse personal/ulw origin/personal/ulw` → `600ad5c6015902e67f70bc37c47b6681a69aa24c` ×2; file docs/tasks/T-20261104-11/outcome.md
 
 # 증거: 개인 커밋 처리표
 원칙: 원본(73e5515 "OMP owns execution" 슬림화·0d6e010 프리셋 갱신) 구조를 기준으로, 원본이 다른 방식으로 해결하지 않은 개인 의도만 다시 얹었다.
